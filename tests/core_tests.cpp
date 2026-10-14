@@ -1,6 +1,8 @@
 #include "algorithms/WeightedGraph.h"
 #include "algorithms/RouteAlgorithms.h"
 #include "algorithms/FloydWarshall.h"
+#include "algorithms/DisjointSetUnion.h"
+#include "algorithms/InfrastructureAlgorithms.h"
 #include "core/models/CityLocation.h"
 #include "core/models/Road.h"
 #include "services/CityRepository.h"
@@ -49,10 +51,28 @@ int main()
     require(graph.revision() > beforeRoadEdit, "road edits should update the graph revision");
 
     const auto beforeMove = graph.revision();
+    const auto beforeCandidate = graph.revision();
+    require(graph.addConstructionCandidate({8, 10, 20, 400.0}),
+            "valid construction candidate should be added");
+    require(graph.revision() > beforeCandidate,
+            "construction candidate changes should update graph revision");
+    require(!graph.addConstructionCandidate({9, 10, 20, -1.0}),
+            "negative construction cost should be rejected");
     require(graph.moveLocation(10, 15.0, 25.0), "location should move");
     require(graph.revision() > beforeMove, "moving should update the graph revision");
     require(graph.removeLocation(10), "location should be removed");
     require(graph.roadCount() == 0, "connected roads should be removed safely");
+    require(graph.constructionCandidateCount() == 0,
+            "connected construction candidates should be removed safely");
+
+    smartcity::algorithms::DisjointSetUnion disjointSets(4);
+    require(disjointSets.unite(0, 1), "different disjoint sets should unite");
+    require(disjointSets.unite(2, 3), "second pair should unite");
+    require(disjointSets.unite(1, 2), "the two trees should unite");
+    require(disjointSets.find(0) == disjointSets.find(3),
+            "path-compressed find should report the merged root");
+    require(!disjointSets.unite(0, 3), "uniting an existing component should do nothing");
+    require(disjointSets.componentCount() == 1, "DSU should track component count");
 
     WeightedGraph routes;
     for (int id = 0; id <= 5; ++id) {
@@ -179,9 +199,52 @@ int main()
                  .isReachable(0, 2),
             "overflowing path sums should remain infinity rather than wrap or corrupt the matrix");
 
+    WeightedGraph infrastructure;
+    for (int id = 0; id < 4; ++id) {
+        require(infrastructure.addLocation({id, "Site " + std::to_string(id), id * 10.0, 0.0,
+                                            LocationCategory::Intersection}),
+                "infrastructure test location should be added");
+    }
+    require(infrastructure.addConstructionCandidate({0, 0, 1, 1.0}),
+            "first explicit candidate should be added");
+    require(infrastructure.addConstructionCandidate({1, 1, 2, 2.0}),
+            "second explicit candidate should be added");
+    require(infrastructure.addConstructionCandidate({2, 0, 2, 5.0}),
+            "cycle candidate should be added");
+    require(infrastructure.addRoad({40, 2, 3, 1.0, 1.0, 0.01,
+                                    RoadDirection::TwoWay, false}),
+            "travel road should coexist with infrastructure candidates");
+    const auto primForest = smartcity::algorithms::InfrastructureAlgorithms::prim(infrastructure);
+    const auto kruskalForest = smartcity::algorithms::InfrastructureAlgorithms::kruskal(infrastructure);
+    require(primForest.totalCost == 3.0 && kruskalForest.totalCost == 3.0,
+            "Prim and Kruskal should produce the known minimum cost");
+    require(primForest.candidateIds.size() == 2 && kruskalForest.candidateIds.size() == 2,
+            "both forests should select two construction candidates");
+    require(primForest.componentCount == 2 && kruskalForest.componentCount == 2,
+            "the isolated site should produce a two-component forest");
+    require(std::find(primForest.candidateIds.begin(), primForest.candidateIds.end(), 40)
+                == primForest.candidateIds.end(),
+            "travel road IDs must never become construction candidates");
+
+    WeightedGraph ties;
+    for (int id = 0; id < 3; ++id)
+        require(ties.addLocation({id, "Tie", id * 5.0, 0.0, LocationCategory::Intersection}),
+                "tie location should be added");
+    require(ties.addConstructionCandidate({0, 0, 1, 1.0})
+                && ties.addConstructionCandidate({1, 1, 2, 1.0})
+                && ties.addConstructionCandidate({2, 0, 2, 1.0}),
+            "equal-cost candidates should be accepted");
+    const auto primTies = smartcity::algorithms::InfrastructureAlgorithms::prim(ties);
+    const auto kruskalTies = smartcity::algorithms::InfrastructureAlgorithms::kruskal(ties);
+    require(primTies.componentCount == 1 && kruskalTies.componentCount == 1
+                && std::abs(primTies.totalCost - kruskalTies.totalCost) < 1e-9,
+            "Prim and Kruskal totals should agree even when tied edge choices may differ");
+
     const smartcity::services::CityRepository repository;
     require(repository.city().vertexCount() == 6, "sample city should contain six locations");
     require(repository.city().roadCount() == 7, "sample city should contain seven roads");
+    require(repository.city().constructionCandidateCount() == 8,
+            "sample city should contain eight explicit construction candidates");
     require(repository.city().road(6)->closed, "sample should contain a closed road");
 
     std::cout << "All SmartCity core tests passed.\n";

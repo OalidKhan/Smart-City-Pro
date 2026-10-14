@@ -17,5 +17,15 @@
         { "id": 4, "from": 1, "to": 5, "distance": 2.1, "travelTime": 3.6, "constructionCost": 64000, "direction": "two-way", "closed": false },
         { "id": 5, "from": 2, "to": 4, "distance": 3.0, "travelTime": 5.2, "constructionCost": 110000, "direction": "one-way", "closed": false },
         { "id": 6, "from": 4, "to": 5, "distance": 2.4, "travelTime": 4.0, "constructionCost": 76000, "direction": "two-way", "closed": true }
+    ],
+    "constructionCandidates": [
+        { "id": 0, "first": 0, "second": 1, "constructionCost": 130000 },
+        { "id": 1, "first": 0, "second": 2, "constructionCost": 95000 },
+        { "id": 2, "first": 0, "second": 3, "constructionCost": 82000 },
+        { "id": 3, "first": 1, "second": 2, "constructionCost": 70000 },
+        { "id": 4, "first": 1, "second": 5, "constructionCost": 60000 },
+        { "id": 5, "first": 2, "second": 4, "constructionCost": 105000 },
+        { "id": 6, "first": 2, "second": 3, "constructionCost": 68000 },
+        { "id": 7, "first": 4, "second": 5, "constructionCost": 74000 }
     ]
 }

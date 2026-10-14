@@ -63,7 +63,7 @@ DashboardPage::DashboardPage(const smartcity::services::CityRepository& reposito
     cards->addWidget(createMetricCard(QString::number(repository.city().vertexCount()),
                                       "Sample locations", "Stored in the Qt-free city model", this), 0, 0);
     cards->addWidget(createMetricCard(QString::number(repository.city().roadCount()),
-                                      "Sample roads", "Undirected weighted graph edges", this), 0, 1);
+                                      "Sample roads", "Directed travel-network records", this), 0, 1);
     cards->addWidget(createMetricCard("9", "Project modules",
                                       "Ready for future algorithm features", this), 0, 2);
     cards->setColumnStretch(0, 1);
@@ -75,11 +75,11 @@ DashboardPage::DashboardPage(const smartcity::services::CityRepository& reposito
     notice->setObjectName("infoPanel");
     auto* noticeLayout = new QVBoxLayout(notice);
     noticeLayout->setContentsMargins(22, 18, 22, 18);
-    auto* noticeTitle = new QLabel("Part 4 all-pairs routes", notice);
+    auto* noticeTitle = new QLabel("Part 5 infrastructure planning", notice);
     noticeTitle->setObjectName("sectionTitle");
     auto* noticeText = new QLabel(
-        "The city editor and animated Route Finder remain available. All-Pairs Routes now computes cached distance or travel-time "
-        "matrices with Floyd–Warshall. Dispatch, optimization, and performance analysis remain intentionally unimplemented.",
+        "Prim and Kruskal now build animated minimum spanning forests from a separate set of undirected construction candidates. "
+        "The city editor, route finder, and all-pairs planner remain available. Dispatch, delivery optimization, and performance analysis remain intentionally unimplemented.",
         notice);
     noticeText->setObjectName("pageDescription");
     noticeText->setWordWrap(true);

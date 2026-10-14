@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(SmartCityPro VERSION 0.4.0 LANGUAGES CXX)
+project(SmartCityPro VERSION 0.5.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,11 +11,17 @@ find_package(Qt6 6.2 REQUIRED COMPONENTS Widgets Concurrent)
 add_library(smartcity_core
     src/core/models/CityLocation.cpp
     src/core/models/CityLocation.h
+    src/core/models/ConstructionCandidate.cpp
+    src/core/models/ConstructionCandidate.h
     src/core/models/Road.cpp
     src/core/models/Road.h
     src/algorithms/WeightedGraph.cpp
     src/algorithms/WeightedGraph.h
     src/algorithms/AlgorithmEvent.h
+    src/algorithms/DisjointSetUnion.cpp
+    src/algorithms/DisjointSetUnion.h
+    src/algorithms/InfrastructureAlgorithms.cpp
+    src/algorithms/InfrastructureAlgorithms.h
     src/algorithms/RouteAlgorithms.cpp
     src/algorithms/RouteAlgorithms.h
     src/algorithms/FloydWarshall.cpp
@@ -42,6 +48,8 @@ add_executable(SmartCityPro
     src/gui/pages/RouteFinderPage.h
     src/gui/pages/AllPairsRoutesPage.cpp
     src/gui/pages/AllPairsRoutesPage.h
+    src/gui/pages/InfrastructurePage.cpp
+    src/gui/pages/InfrastructurePage.h
     src/services/CityJsonSerializer.cpp
     src/services/CityJsonSerializer.h
 )

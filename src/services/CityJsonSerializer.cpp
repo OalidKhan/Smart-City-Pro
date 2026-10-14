@@ -2,6 +2,7 @@
 
 #include "algorithms/WeightedGraph.h"
 #include "core/models/CityLocation.h"
+#include "core/models/ConstructionCandidate.h"
 #include "core/models/Road.h"
 
 #include <QFile>
@@ -85,6 +86,21 @@ bool CityJsonSerializer::save(const QString& fileName,
         roads.append(object);
     }
     root.insert("roads", roads);
+
+    std::vector<int> candidateIds;
+    for (const auto& item : graph.constructionCandidates()) candidateIds.push_back(item.first);
+    std::sort(candidateIds.begin(), candidateIds.end());
+    QJsonArray constructionCandidates;
+    for (const int id : candidateIds) {
+        const auto& candidate = graph.constructionCandidates().at(id);
+        QJsonObject object;
+        object.insert("id", candidate.id);
+        object.insert("first", candidate.firstLocationId);
+        object.insert("second", candidate.secondLocationId);
+        object.insert("constructionCost", candidate.constructionCost);
+        constructionCandidates.append(object);
+    }
+    root.insert("constructionCandidates", constructionCandidates);
 
     QSaveFile file(fileName);
     if (!file.open(QIODevice::WriteOnly)) {
@@ -175,6 +191,35 @@ bool CityJsonSerializer::load(const QString& fileName,
         road.closed = object.value("closed").toBool();
         if (!candidate.addRoad(road)) {
             if (errorMessage) *errorMessage = describeIndex("road", index, "duplicate id, bad endpoint, self-loop, or invalid weight");
+            return false;
+        }
+    }
+
+    const auto constructionValue = root.value("constructionCandidates");
+    if (!constructionValue.isUndefined() && !constructionValue.isArray()) {
+        if (errorMessage) *errorMessage = "constructionCandidates must be an array when present.";
+        return false;
+    }
+    const QJsonArray constructionCandidates = constructionValue.toArray();
+    for (qsizetype index = 0; index < constructionCandidates.size(); ++index) {
+        if (!constructionCandidates.at(index).isObject()) {
+            if (errorMessage) *errorMessage = describeIndex("construction candidate", index, "expected an object");
+            return false;
+        }
+        const auto object = constructionCandidates.at(index).toObject();
+        core::ConstructionCandidate constructionCandidate;
+        if (!integerField(object, "id", constructionCandidate.id)
+            || !integerField(object, "first", constructionCandidate.firstLocationId)
+            || !integerField(object, "second", constructionCandidate.secondLocationId)
+            || !numberField(object, "constructionCost", constructionCandidate.constructionCost, true)) {
+            if (errorMessage) *errorMessage = describeIndex(
+                "construction candidate", index, "invalid fields or negative cost");
+            return false;
+        }
+        if (!candidate.addConstructionCandidate(constructionCandidate)) {
+            if (errorMessage) *errorMessage = describeIndex(
+                "construction candidate", index,
+                "duplicate id, bad endpoint, self-loop, or invalid cost");
             return false;
         }
     }

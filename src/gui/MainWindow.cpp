@@ -3,6 +3,7 @@
 #include "gui/pages/AllPairsRoutesPage.h"
 #include "gui/pages/CityMapPage.h"
 #include "gui/pages/DashboardPage.h"
+#include "gui/pages/InfrastructurePage.h"
 #include "gui/pages/PlaceholderPage.h"
 #include "gui/pages/RouteFinderPage.h"
 
@@ -23,7 +24,7 @@ MainWindow::MainWindow(QWidget* parent)
     resize(1280, 780);
     buildInterface();
     applyTheme();
-    statusBar()->showMessage("Ready — Part 4 all-pairs route planner loaded");
+    statusBar()->showMessage("Ready — Part 5 infrastructure planner loaded");
 }
 
 void MainWindow::buildInterface()
@@ -57,8 +58,7 @@ void MainWindow::buildInterface()
     addNavigationItem("City Map", new CityMapPage(repository_, pageStack_));
     addNavigationItem("Route Finder", new RouteFinderPage(repository_, pageStack_));
     addNavigationItem("All-Pairs Routes", new AllPairsRoutesPage(repository_, pageStack_));
-    addNavigationItem("Infrastructure", new PlaceholderPage(
-        "Infrastructure", "Network planning and minimum-spanning-tree tools are planned for a later part.", pageStack_));
+    addNavigationItem("Infrastructure", new InfrastructurePage(repository_, pageStack_));
     addNavigationItem("Emergency Dispatch", new PlaceholderPage(
         "Emergency Dispatch", "Emergency vehicle assignment and dispatch simulation are not implemented yet.", pageStack_));
     addNavigationItem("Delivery Optimizer", new PlaceholderPage(
@@ -69,7 +69,7 @@ void MainWindow::buildInterface()
         "Performance", "Benchmark collection and complexity charts are planned for a later part.", pageStack_));
 
     navigationLayout->addStretch();
-    auto* version = new QLabel("University Algorithms Project\nPart 4 · v0.4", navigationContainer_);
+    auto* version = new QLabel("University Algorithms Project\nPart 5 · v0.5", navigationContainer_);
     version->setObjectName("sidebarFooter");
     navigationLayout->addWidget(version);
 
@@ -251,6 +251,17 @@ void MainWindow::applyTheme()
             background: #f8fafc;
             border: 1px solid #dbe3ee;
             border-radius: 7px;
+        }
+        QGraphicsView#infrastructureView {
+            background: #f8fafc;
+            border: 1px solid #dbe3ee;
+            border-radius: 7px;
+        }
+        QTableWidget#candidateTable {
+            background: #ffffff;
+            alternate-background-color: #f8fafc;
+            border: 1px solid #dbe3ee;
+            gridline-color: #e2e8f0;
         }
         QTableWidget#matrixTable {
             background: #ffffff;
