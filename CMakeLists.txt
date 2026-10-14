@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(SmartCityPro VERSION 0.5.0 LANGUAGES CXX)
+project(SmartCityPro VERSION 0.6.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -13,6 +13,8 @@ add_library(smartcity_core
     src/core/models/CityLocation.h
     src/core/models/ConstructionCandidate.cpp
     src/core/models/ConstructionCandidate.h
+    src/core/models/EmergencyModels.cpp
+    src/core/models/EmergencyModels.h
     src/core/models/Road.cpp
     src/core/models/Road.h
     src/algorithms/WeightedGraph.cpp
@@ -28,6 +30,8 @@ add_library(smartcity_core
     src/algorithms/FloydWarshall.h
     src/services/CityRepository.cpp
     src/services/CityRepository.h
+    src/services/EmergencyDispatchSimulation.cpp
+    src/services/EmergencyDispatchSimulation.h
 )
 
 target_include_directories(smartcity_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -50,8 +54,12 @@ add_executable(SmartCityPro
     src/gui/pages/AllPairsRoutesPage.h
     src/gui/pages/InfrastructurePage.cpp
     src/gui/pages/InfrastructurePage.h
+    src/gui/pages/EmergencyDispatchPage.cpp
+    src/gui/pages/EmergencyDispatchPage.h
     src/services/CityJsonSerializer.cpp
     src/services/CityJsonSerializer.h
+    src/services/DispatchJsonSerializer.cpp
+    src/services/DispatchJsonSerializer.h
 )
 
 set_target_properties(SmartCityPro PROPERTIES

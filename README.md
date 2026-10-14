@@ -1,6 +1,6 @@
-# SmartCity Pro — Part 5
+# SmartCity Pro — Part 6
 
-SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 5 preserves the map and route tools while adding an animated minimum-cost infrastructure planner.
+SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 6 preserves the map, routing, and infrastructure tools while adding an educational ambulance-dispatch simulation. It never contacts real emergency services.
 
 ## Implemented features
 
@@ -33,8 +33,19 @@ SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 5 pres
 - Animated candidate consideration, acceptance, rejection, and component starts
 - Total construction cost, connected-component count, and side-by-side algorithm comparison
 - Clear minimum-spanning-forest reporting for disconnected candidate networks
+- Simulated ambulances with stable IDs, current graph locations, availability, and assignments
+- Hospital resources with simulated bed counts and supported service categories
+- Priority/time-ordered requests with explicit creation times, requirements, statuses, and timing results
+- Travel-time Dijkstra selection for reachable ambulances and compatible hospitals
+- Deterministic ambulance and hospital tie-breaking by stable ID/location ID
+- Reservation of ambulances and beds before a journey starts
+- Explicit simulation clock and request state machine
+- Animated ambulance-to-patient and patient-to-hospital node-by-node journeys
+- Graph-revision detection and rerouting at the next node after road changes
+- Cancellation, unavailable-resource, unreachable-route, and failed-transport handling
+- Atomic, validated dispatch-state JSON save/load
 
-Dispatch, delivery optimization, the general Algorithm Lab, and benchmarking remain placeholders for later parts.
+Delivery optimization, the general Algorithm Lab, and benchmarking remain placeholders for later parts.
 
 ## Project structure
 
@@ -43,11 +54,13 @@ SmartCity/
 ├── CMakeLists.txt
 ├── README.md
 ├── samples/sample-city.json
+├── samples/sample-dispatch.json
 ├── src/
 │   ├── main.cpp
 │   ├── core/models/
 │   │   ├── CityLocation.h/.cpp
 │   │   ├── ConstructionCandidate.h/.cpp
+│   │   ├── EmergencyModels.h/.cpp
 │   │   └── Road.h/.cpp
 │   ├── algorithms/
 │   │   ├── WeightedGraph.h/.cpp
@@ -58,7 +71,9 @@ SmartCity/
 │   │   └── InfrastructureAlgorithms.h/.cpp
 │   ├── services/
 │   │   ├── CityRepository.h/.cpp
-│   │   └── CityJsonSerializer.h/.cpp
+│   │   ├── CityJsonSerializer.h/.cpp
+│   │   ├── EmergencyDispatchSimulation.h/.cpp
+│   │   └── DispatchJsonSerializer.h/.cpp
 │   └── gui/
 │       ├── MainWindow.h/.cpp
 │       ├── animation/AlgorithmAnimationController.h/.cpp
@@ -68,6 +83,7 @@ SmartCity/
 │           ├── RouteFinderPage.h/.cpp
 │           ├── AllPairsRoutesPage.h/.cpp
 │           ├── InfrastructurePage.h/.cpp
+│           ├── EmergencyDispatchPage.h/.cpp
 │           └── PlaceholderPage.h/.cpp
 └── tests/core_tests.cpp
 ```
@@ -133,6 +149,23 @@ Full matrix visualization is limited to 40 locations to keep the table readable.
 
 If the candidate network is disconnected, the planner returns a minimum spanning forest and explicitly reports that a single connected network is impossible with the available candidates.
 
+## Try the Emergency Dispatch Simulator
+
+1. Select **Emergency Dispatch**. The supplied city starts with two available simulated ambulances and three simulated beds at Northside Hospital.
+2. Use **+ Ambulance** and **+ Hospital** to edit simulation resources. Hospital resources can only be attached to locations whose category is `hospital`.
+3. Use **+ Request** to select a patient location, simulated priority, and required service. Creation time comes from the explicit simulation clock.
+4. Choose **Dispatch next**. Requests are ordered critical, medium, then low; equal priorities use earlier creation time, then lower request ID.
+5. The simulator runs travel-time Dijkstra from every available ambulance. The fastest reachable ambulance wins; equal times use the lower ambulance ID. A reachable hospital with the requested service and a free simulated bed is selected by travel time, then location ID.
+6. Use **Play**, **Pause**, or **Step to next node** to animate the selected active request. The clock advances by each traversed road's simulated travel time.
+7. Select a request row and choose **Cancel request** to cancel it. Active reservations are released safely. Terminal history records can be removed with **Delete record** when their city references are no longer needed.
+8. Use **Save simulation** and **Load simulation** for atomic dispatch JSON persistence. `samples/sample-dispatch.json` contains a queued fictional example.
+
+State transitions are `queued → to-patient → to-hospital → completed`. Cancellation is allowed while queued or active. If no ambulance, patient route, or suitable hospital is currently available, the request remains queued with an explanation. If road changes make the patient unreachable at a node, the request is requeued and reservations are released. If this occurs after pickup and no hospital route remains, the simulated request becomes `failed`.
+
+Response time is measured from request creation on the simulation clock until the ambulance reaches the patient, so it includes simulated queue waiting. Transport time accumulates the travel time of roads traversed after pickup.
+
+Road changes never interrupt the ambulance partway along an edge. The simulator finishes the current discrete edge movement, detects the changed graph revision at the next node, and reruns Dijkstra before entering another edge.
+
 ## Architecture notes
 
 - `WeightedGraph` is the source of truth. It owns locations, travel roads, explicit construction candidates, ID generation, directed travel adjacency lists, validation, connected-record cleanup, and the graph revision.
@@ -147,6 +180,9 @@ If the candidate network is disconnected, the planner returns a minimum spanning
 - `AllPairsRoutesPage` uses Qt Concurrent only at the GUI boundary. The worker receives a complete graph copy and never touches widgets or mutable live data.
 - `InfrastructureAlgorithms` is Qt-free. Prim builds an undirected adjacency structure only from construction candidates; Kruskal sorts those same candidates and uses `DisjointSetUnion`.
 - `InfrastructurePage` edits candidate records and replays the algorithm's precomputed events with the same timer-based animation controller used by Route Finder.
+- `EmergencyDispatchSimulation` is a Qt-free state machine. It owns the clock, resources, requests, reservations, planned legs, and node-level transitions while reusing the Qt-free Dijkstra implementation.
+- `EmergencyDispatchPage` uses a GUI timer to advance one graph edge without blocking the event loop. It renders current ambulance nodes and the most recent journey edge.
+- `DispatchJsonSerializer` writes atomically and parses into temporary model vectors. The live simulation is replaced only after all references and reservation invariants validate against the current city graph.
 
 ## Complexity
 
@@ -160,9 +196,15 @@ For `V` locations and `C` construction candidates, this Prim implementation uses
 
 An MST minimizes the **sum of selected construction costs** needed to connect all locations when connection is possible. It does not minimize the distance or travel time between particular pairs: an inexpensive tree can force a long detour. Shortest-route questions remain the job of Dijkstra or Floyd–Warshall on the travel-road graph.
 
+For `A` available ambulances and `H` eligible hospitals, a dispatch can run up to `A + H` travel-time Dijkstra searches. With `V` locations and `E` directed adjacency entries, the worst-case dispatch time is `O((A + H)(V + E) log V)` and the temporary routing storage is `O(V + E)` per sequential search.
+
+The dispatch rule is deliberately greedy: it chooses the fastest ambulance and hospital for the next highest-priority request using current information. That is a local decision. It does not minimize total response time, missed coverage, or resource usage across several present or future requests; globally optimal multi-request assignment requires a different optimization model.
+
 ## JSON format
 
 The root object contains `schemaVersion`, informational `graphRevision`, `locations`, `roads`, and `constructionCandidates`. Older schema-version-1 files without the optional candidate array still load with an empty candidate network. Categories use these exact strings: `intersection`, `hospital`, `university`, `market`, `residential area`, and `ambulance station`. Road direction is `one-way` or `two-way`. A construction candidate stores `id`, `first`, `second`, and `constructionCost` and is always interpreted as undirected.
+
+Dispatch data uses a separate schema-version-1 JSON document containing `simulationClockMinutes`, `ambulances`, `hospitals`, and `requests`. Keeping it separate allows a city layout to be reused with different simulation scenarios. Loading rejects missing locations, duplicate IDs, invalid states, unknown enum values, inconsistent assignments, and malformed reservation records without changing the current simulation.
 
 ## Verification note
 

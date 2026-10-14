@@ -4,8 +4,10 @@
 #include "algorithms/DisjointSetUnion.h"
 #include "algorithms/InfrastructureAlgorithms.h"
 #include "core/models/CityLocation.h"
+#include "core/models/EmergencyModels.h"
 #include "core/models/Road.h"
 #include "services/CityRepository.h"
+#include "services/EmergencyDispatchSimulation.h"
 
 #include <algorithm>
 #include <cmath>
@@ -240,11 +242,145 @@ int main()
                 && std::abs(primTies.totalCost - kruskalTies.totalCost) < 1e-9,
             "Prim and Kruskal totals should agree even when tied edge choices may differ");
 
+    WeightedGraph dispatchGraph;
+    require(dispatchGraph.addLocation({0, "Station West", 0.0, 0.0,
+                                       LocationCategory::AmbulanceStation})
+                && dispatchGraph.addLocation({1, "Patient", 10.0, 0.0,
+                                              LocationCategory::ResidentialArea})
+                && dispatchGraph.addLocation({2, "Hospital", 20.0, 0.0,
+                                              LocationCategory::Hospital})
+                && dispatchGraph.addLocation({3, "Station East", 10.0, 10.0,
+                                              LocationCategory::AmbulanceStation})
+                && dispatchGraph.addLocation({4, "Isolated", 100.0, 100.0,
+                                              LocationCategory::ResidentialArea})
+                && dispatchGraph.addLocation({5, "Second Hospital", 20.0, 10.0,
+                                              LocationCategory::Hospital}),
+            "dispatch locations should be added");
+    require(dispatchGraph.addRoad({0, 0, 1, 1.0, 5.0, 0.0,
+                                   RoadDirection::TwoWay, false})
+                && dispatchGraph.addRoad({1, 3, 1, 1.0, 5.0, 0.0,
+                                          RoadDirection::TwoWay, false})
+                && dispatchGraph.addRoad({2, 1, 2, 1.0, 4.0, 0.0,
+                                          RoadDirection::TwoWay, false})
+                && dispatchGraph.addRoad({3, 1, 5, 1.0, 4.0, 0.0,
+                                          RoadDirection::TwoWay, false}),
+            "dispatch travel roads should be added");
+    smartcity::services::EmergencyDispatchSimulation dispatch;
+    require(dispatch.addAmbulance({0, 0, true, -1}, dispatchGraph)
+                && dispatch.addAmbulance({1, 3, true, -1}, dispatchGraph),
+            "sample ambulances should be added");
+    require(dispatch.addHospital({2, 1, {smartcity::core::EmergencyService::Trauma}},
+                                 dispatchGraph)
+                && dispatch.addHospital({5, 1, {smartcity::core::EmergencyService::Trauma}},
+                                        dispatchGraph),
+            "sample hospital resources should be added");
+    smartcity::core::EmergencyRequest lowPriority;
+    lowPriority.id = 0;
+    lowPriority.locationId = 1;
+    lowPriority.priority = smartcity::core::SimulatedPriority::Low;
+    lowPriority.requiredService = smartcity::core::EmergencyService::Trauma;
+    require(dispatch.addRequest(lowPriority, dispatchGraph),
+            "low-priority request should be queued");
+    dispatch.advanceClock(1.0);
+    smartcity::core::EmergencyRequest criticalRequest = lowPriority;
+    criticalRequest.id = 1;
+    criticalRequest.priority = smartcity::core::SimulatedPriority::Critical;
+    criticalRequest.creationTimeMinutes = 1.0;
+    require(dispatch.addRequest(criticalRequest, dispatchGraph),
+            "critical request should be queued");
+    const auto assigned = dispatch.dispatchNext(dispatchGraph);
+    require(assigned.code == smartcity::services::DispatchResultCode::Assigned
+                && assigned.requestId == 1,
+            "priority should precede creation time in the dispatch queue");
+    require(assigned.ambulanceId == 0 && assigned.hospitalLocationId == 2,
+            "equal travel times should use the lower ambulance and hospital IDs");
+    require(dispatch.hospitals().at(2).availableBeds == 0
+                && !dispatch.ambulances().at(0).available,
+            "dispatch should reserve the bed and ambulance atomically");
+    require(dispatch.removeHospital(5), "unused tie-test hospital should be removable");
+    const auto blockedByBed = dispatch.dispatchNext(dispatchGraph);
+    require(blockedByBed.code == smartcity::services::DispatchResultCode::NoSuitableHospital
+                && dispatch.requests().at(0).status == smartcity::core::RequestStatus::Queued,
+            "request should remain queued when no suitable bed is available");
+    const auto patientArrival = dispatch.advanceOneNode(dispatchGraph, 1);
+    require(patientArrival.code == smartcity::services::SimulationStepCode::PatientReached
+                && dispatch.requests().at(1).responseTimeMinutes == 5.0,
+            "first journey leg should record response time");
+    const auto hospitalArrival = dispatch.advanceOneNode(dispatchGraph, 1);
+    require(hospitalArrival.code == smartcity::services::SimulationStepCode::HospitalReached
+                && dispatch.requests().at(1).transportTimeMinutes == 4.0
+                && dispatch.ambulances().at(0).available,
+            "second journey leg should complete and release the ambulance");
+    smartcity::core::EmergencyRequest unreachableRequest = lowPriority;
+    unreachableRequest.id = 2;
+    unreachableRequest.locationId = 4;
+    unreachableRequest.priority = smartcity::core::SimulatedPriority::Critical;
+    unreachableRequest.creationTimeMinutes = dispatch.clockMinutes();
+    require(dispatch.addRequest(unreachableRequest, dispatchGraph),
+            "unreachable request should still enter the queue");
+    require(dispatch.dispatchNext(dispatchGraph).code
+                == smartcity::services::DispatchResultCode::PatientUnreachable
+                && dispatch.requests().at(2).status == smartcity::core::RequestStatus::Queued,
+            "an unreachable patient should remain queued without a reservation");
+
+    smartcity::services::EmergencyDispatchSimulation noAmbulanceDispatch;
+    smartcity::core::EmergencyRequest noAmbulanceRequest;
+    noAmbulanceRequest.id = 0;
+    noAmbulanceRequest.locationId = 1;
+    require(noAmbulanceDispatch.addRequest(noAmbulanceRequest, dispatchGraph)
+                && noAmbulanceDispatch.dispatchNext(dispatchGraph).code
+                    == smartcity::services::DispatchResultCode::NoAvailableAmbulance,
+            "a request should remain queued when no ambulance exists");
+
+    smartcity::services::EmergencyDispatchSimulation cancellationDispatch;
+    require(cancellationDispatch.addAmbulance({0, 0, true, -1}, dispatchGraph)
+                && cancellationDispatch.addHospital(
+                    {2, 1, {smartcity::core::EmergencyService::General}}, dispatchGraph)
+                && cancellationDispatch.addRequest(noAmbulanceRequest, dispatchGraph)
+                && cancellationDispatch.dispatchNext(dispatchGraph).code
+                    == smartcity::services::DispatchResultCode::Assigned,
+            "cancellation scenario should reserve resources");
+    require(cancellationDispatch.cancelRequest(0)
+                && cancellationDispatch.ambulances().at(0).available
+                && cancellationDispatch.hospitals().at(2).availableBeds == 1,
+            "active cancellation should release ambulance and bed reservations");
+
+    smartcity::services::EmergencyDispatchSimulation roadChangeDispatch;
+    require(roadChangeDispatch.addAmbulance({0, 0, true, -1}, dispatchGraph)
+                && roadChangeDispatch.addHospital(
+                    {2, 1, {smartcity::core::EmergencyService::General}}, dispatchGraph),
+            "road-change resources should be added");
+    smartcity::core::EmergencyRequest roadChangeRequest;
+    roadChangeRequest.id = 0;
+    roadChangeRequest.locationId = 1;
+    roadChangeRequest.requiredService = smartcity::core::EmergencyService::General;
+    require(roadChangeDispatch.addRequest(roadChangeRequest, dispatchGraph)
+                && roadChangeDispatch.dispatchNext(dispatchGraph).code
+                    == smartcity::services::DispatchResultCode::Assigned,
+            "road-change request should initially dispatch");
+    auto closedApproach = *dispatchGraph.road(0);
+    closedApproach.closed = true;
+    require(dispatchGraph.updateRoad(closedApproach), "approach road should close");
+    const auto rerouteFailure = roadChangeDispatch.advanceOneNode(dispatchGraph, 0);
+    require(rerouteFailure.code == smartcity::services::SimulationStepCode::Requeued
+                && roadChangeDispatch.requests().at(0).status
+                    == smartcity::core::RequestStatus::Queued
+                && roadChangeDispatch.ambulances().at(0).available
+                && roadChangeDispatch.hospitals().at(2).availableBeds == 1,
+            "an impossible node-level reroute should safely release resources and requeue");
+    require(roadChangeDispatch.cancelRequest(0)
+                && roadChangeDispatch.requests().at(0).status
+                    == smartcity::core::RequestStatus::Cancelled,
+            "queued simulated requests should support cancellation");
+
     const smartcity::services::CityRepository repository;
     require(repository.city().vertexCount() == 6, "sample city should contain six locations");
     require(repository.city().roadCount() == 7, "sample city should contain seven roads");
     require(repository.city().constructionCandidateCount() == 8,
             "sample city should contain eight explicit construction candidates");
+    require(repository.dispatchSimulation().ambulances().size() == 2
+                && repository.dispatchSimulation().hospitals().size() == 1,
+            "sample city should include simulated dispatch resources");
     require(repository.city().road(6)->closed, "sample should contain a closed road");
 
     std::cout << "All SmartCity core tests passed.\n";

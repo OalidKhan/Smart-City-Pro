@@ -1,0 +1,31 @@
+{
+    "schemaVersion": 1,
+    "simulationClockMinutes": 10.0,
+    "ambulances": [
+        { "id": 0, "currentLocation": 5, "available": true, "assignedRequest": -1 },
+        { "id": 1, "currentLocation": 0, "available": true, "assignedRequest": -1 }
+    ],
+    "hospitals": [
+        {
+            "location": 1,
+            "availableBeds": 3,
+            "supportedServices": ["general", "trauma", "cardiac", "pediatric"]
+        }
+    ],
+    "requests": [
+        {
+            "id": 0,
+            "location": 2,
+            "priority": "critical",
+            "creationTimeMinutes": 10.0,
+            "requiredService": "trauma",
+            "status": "queued",
+            "assignedAmbulance": -1,
+            "assignedHospital": -1,
+            "responseTimeMinutes": -1.0,
+            "transportTimeMinutes": -1.0,
+            "accumulatedTransportMinutes": 0.0,
+            "note": ""
+        }
+    ]
+}
