@@ -36,9 +36,23 @@ CityRepository::CityRepository()
     city_.addConstructionCandidate({5, 2, 4, 105000.0});
     city_.addConstructionCandidate({6, 2, 3, 68000.0});
     city_.addConstructionCandidate({7, 4, 5, 74000.0});
+
+    dispatchSimulation_.addAmbulance({0, 5, true, -1}, city_);
+    dispatchSimulation_.addAmbulance({1, 0, true, -1}, city_);
+    dispatchSimulation_.addHospital({
+        1, 3, {core::EmergencyService::General, core::EmergencyService::Trauma,
+               core::EmergencyService::Cardiac, core::EmergencyService::Pediatric}}, city_);
 }
 
 algorithms::WeightedGraph& CityRepository::city() noexcept { return city_; }
 const algorithms::WeightedGraph& CityRepository::city() const noexcept { return city_; }
+EmergencyDispatchSimulation& CityRepository::dispatchSimulation() noexcept
+{
+    return dispatchSimulation_;
+}
+const EmergencyDispatchSimulation& CityRepository::dispatchSimulation() const noexcept
+{
+    return dispatchSimulation_;
+}
 
 } // namespace smartcity::services

@@ -75,11 +75,11 @@ DashboardPage::DashboardPage(const smartcity::services::CityRepository& reposito
     notice->setObjectName("infoPanel");
     auto* noticeLayout = new QVBoxLayout(notice);
     noticeLayout->setContentsMargins(22, 18, 22, 18);
-    auto* noticeTitle = new QLabel("Part 5 infrastructure planning", notice);
+    auto* noticeTitle = new QLabel("Part 6 emergency dispatch simulation", notice);
     noticeTitle->setObjectName("sectionTitle");
     auto* noticeText = new QLabel(
-        "Prim and Kruskal now build animated minimum spanning forests from a separate set of undirected construction candidates. "
-        "The city editor, route finder, and all-pairs planner remain available. Dispatch, delivery optimization, and performance analysis remain intentionally unimplemented.",
+        "The educational dispatch simulator now queues requests, reserves ambulances and hospital beds, and animates reroutable journeys using travel-time Dijkstra. "
+        "The editor, route planners, and infrastructure tools remain available. Delivery optimization and performance analysis remain intentionally unimplemented.",
         notice);
     noticeText->setObjectName("pageDescription");
     noticeText->setWordWrap(true);

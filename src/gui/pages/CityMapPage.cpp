@@ -469,6 +469,13 @@ void CityMapPage::editLocation(int locationId)
     }
     location.name = name->text().trimmed().toStdString(); location.x = x->value(); location.y = y->value();
     location.category = static_cast<LocationCategory>(category->currentData().toInt());
+    if (repository_.dispatchSimulation().hospitals().find(locationId)
+            != repository_.dispatchSimulation().hospitals().end()
+        && location.category != LocationCategory::Hospital) {
+        QMessageBox::warning(this, "Location used by dispatch",
+            "This location has simulated hospital resources. Remove those resources before changing its category.");
+        return;
+    }
     if (!graph.updateLocation(location)) {
         QMessageBox::warning(this, "Invalid location", "The location could not be updated."); return;
     }
@@ -564,6 +571,11 @@ void CityMapPage::deleteSelected()
     if (selected.isEmpty()) { QMessageBox::information(this, "Delete", "Select a location or road first."); return; }
     auto& graph = repository_.city();
     if (auto* location = dynamic_cast<LocationGraphicsItem*>(selected.front())) {
+        if (repository_.dispatchSimulation().referencesLocation(location->id())) {
+            QMessageBox::warning(this, "Location used by dispatch",
+                "This location is referenced by an ambulance, hospital, or request. Remove the simulation record first.");
+            return;
+        }
         std::size_t connected = 0;
         std::size_t connectedCandidates = 0;
         for (const auto& entry : graph.roads())
@@ -597,8 +609,24 @@ void CityMapPage::loadCity()
     const QString fileName = QFileDialog::getOpenFileName(this, "Load city", {}, "JSON files (*.json)");
     if (fileName.isEmpty()) return;
     QString error;
+    const auto previousGraph = repository_.city();
     if (!smartcity::services::CityJsonSerializer::load(fileName, repository_.city(), &error)) {
         QMessageBox::critical(this, "Load failed", error + "\n\nThe current city was not changed."); return;
+    }
+    std::string compatibilityError;
+    if (!repository_.dispatchSimulation().validateAgainstGraph(
+            repository_.city(), &compatibilityError)) {
+        const auto choice = QMessageBox::question(this, "City conflicts with dispatch data",
+            QString::fromStdString(compatibilityError)
+                + "\n\nReset the dispatch simulation and keep the newly loaded city? "
+                  "Choose No to restore the previous city and simulation.");
+        if (choice == QMessageBox::Yes) {
+            repository_.dispatchSimulation().replaceData(
+                0.0, {}, {}, {}, repository_.city());
+        } else {
+            repository_.city().replaceWith(previousGraph);
+            return;
+        }
     }
     rebuildScene();
     if (!scene_->items().isEmpty()) view_->fitInView(scene_->itemsBoundingRect().adjusted(-60, -60, 60, 60), Qt::KeepAspectRatio);
