@@ -3,6 +3,7 @@
 #include "gui/pages/CityMapPage.h"
 #include "gui/pages/DashboardPage.h"
 #include "gui/pages/PlaceholderPage.h"
+#include "gui/pages/RouteFinderPage.h"
 
 #include <QButtonGroup>
 #include <QFrame>
@@ -21,7 +22,7 @@ MainWindow::MainWindow(QWidget* parent)
     resize(1280, 780);
     buildInterface();
     applyTheme();
-    statusBar()->showMessage("Ready — Part 2 interactive city editor loaded");
+    statusBar()->showMessage("Ready — Part 3 shortest-route tools loaded");
 }
 
 void MainWindow::buildInterface()
@@ -53,10 +54,9 @@ void MainWindow::buildInterface()
 
     addNavigationItem("Dashboard", new DashboardPage(repository_, pageStack_));
     addNavigationItem("City Map", new CityMapPage(repository_, pageStack_));
-    addNavigationItem("Route Finder", new PlaceholderPage(
-        "Route Finder", "Single-source shortest-path tools will be implemented in a later part.", pageStack_));
+    addNavigationItem("Route Finder", new RouteFinderPage(repository_, pageStack_));
     addNavigationItem("All-Pairs Routes", new PlaceholderPage(
-        "All-Pairs Routes", "All-pairs shortest-path comparison is not implemented in Part 1.", pageStack_));
+        "All-Pairs Routes", "All-pairs shortest-path comparison is planned for a later part.", pageStack_));
     addNavigationItem("Infrastructure", new PlaceholderPage(
         "Infrastructure", "Network planning and minimum-spanning-tree tools are planned for a later part.", pageStack_));
     addNavigationItem("Emergency Dispatch", new PlaceholderPage(
@@ -64,12 +64,12 @@ void MainWindow::buildInterface()
     addNavigationItem("Delivery Optimizer", new PlaceholderPage(
         "Delivery Optimizer", "Delivery scheduling and route optimization are planned for a later part.", pageStack_));
     addNavigationItem("Algorithm Lab", new PlaceholderPage(
-        "Algorithm Lab", "Interactive algorithm visualization and step controls are not implemented yet.", pageStack_));
+        "Algorithm Lab", "A general-purpose algorithm sandbox is planned; Route Finder already includes routing animations.", pageStack_));
     addNavigationItem("Performance", new PlaceholderPage(
         "Performance", "Benchmark collection and complexity charts are planned for a later part.", pageStack_));
 
     navigationLayout->addStretch();
-    auto* version = new QLabel("University Algorithms Project\nPart 2 · v0.2", navigationContainer_);
+    auto* version = new QLabel("University Algorithms Project\nPart 3 · v0.3", navigationContainer_);
     version->setObjectName("sidebarFooter");
     navigationLayout->addWidget(version);
 
@@ -214,6 +214,38 @@ void MainWindow::applyTheme()
         QLabel#mapSummary {
             color: #64748b;
             font-size: 11px;
+        }
+        QFrame#routePanel {
+            background: #ffffff;
+            border: 1px solid #dbe3ee;
+            border-radius: 9px;
+        }
+        QPushButton#primaryButton {
+            background: #2563eb;
+            border: none;
+            border-radius: 6px;
+            color: #ffffff;
+            font-weight: 600;
+            padding: 8px 12px;
+        }
+        QPushButton#primaryButton:hover { background: #1d4ed8; }
+        QLabel#algorithmCaveat {
+            color: #92400e;
+            font-size: 11px;
+        }
+        QLabel#routeResult {
+            color: #334155;
+            font-size: 12px;
+        }
+        QListWidget#routeList {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+        QGraphicsView#routeView {
+            background: #f8fafc;
+            border: 1px solid #dbe3ee;
+            border-radius: 9px;
         }
         QStatusBar {
             background: #ffffff;

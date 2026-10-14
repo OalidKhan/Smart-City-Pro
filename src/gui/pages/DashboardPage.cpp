@@ -75,11 +75,11 @@ DashboardPage::DashboardPage(const smartcity::services::CityRepository& reposito
     notice->setObjectName("infoPanel");
     auto* noticeLayout = new QVBoxLayout(notice);
     noticeLayout->setContentsMargins(22, 18, 22, 18);
-    auto* noticeTitle = new QLabel("Part 2 city editor", notice);
+    auto* noticeTitle = new QLabel("Part 3 shortest routes", notice);
     noticeTitle->setObjectName("sectionTitle");
     auto* noticeText = new QLabel(
-        "The City Map now supports graph-backed location and road editing, drag updates, direction and closure status, "
-        "plus safe JSON save/load. Route planning, dispatch, optimization, and performance analysis remain intentionally unimplemented.",
+        "The City Map editor remains available, and Route Finder now provides animated Dijkstra, BFS, and DFS demonstrations. "
+        "All-pairs routing, dispatch, optimization, and performance analysis remain intentionally unimplemented.",
         notice);
     noticeText->setObjectName("pageDescription");
     noticeText->setWordWrap(true);
