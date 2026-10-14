@@ -1,6 +1,7 @@
 #include "services/CityRepository.h"
 
 #include "core/models/CityLocation.h"
+#include "core/models/ConstructionCandidate.h"
 #include "core/models/Road.h"
 
 namespace smartcity::services {
@@ -24,6 +25,17 @@ CityRepository::CityRepository()
     city_.addRoad({4, 1, 5, 2.1, 3.6, 64000.0, RoadDirection::TwoWay, false});
     city_.addRoad({5, 2, 4, 3.0, 5.2, 110000.0, RoadDirection::OneWay, false});
     city_.addRoad({6, 4, 5, 2.4, 4.0, 76000.0, RoadDirection::TwoWay, true});
+
+    // Infrastructure candidates are deliberately explicit and undirected. They are
+    // not inferred from the directed/open/closed travel-road network above.
+    city_.addConstructionCandidate({0, 0, 1, 130000.0});
+    city_.addConstructionCandidate({1, 0, 2, 95000.0});
+    city_.addConstructionCandidate({2, 0, 3, 82000.0});
+    city_.addConstructionCandidate({3, 1, 2, 70000.0});
+    city_.addConstructionCandidate({4, 1, 5, 60000.0});
+    city_.addConstructionCandidate({5, 2, 4, 105000.0});
+    city_.addConstructionCandidate({6, 2, 3, 68000.0});
+    city_.addConstructionCandidate({7, 4, 5, 74000.0});
 }
 
 algorithms::WeightedGraph& CityRepository::city() noexcept { return city_; }

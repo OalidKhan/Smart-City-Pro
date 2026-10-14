@@ -9,6 +9,10 @@ enum class AlgorithmEventType {
     DistanceUpdated,
     FinalRouteNode,
     FinalRouteEdge,
+    ComponentStarted,
+    CandidateConsidered,
+    CandidateAccepted,
+    CandidateRejected,
     Finished
 };
 
@@ -19,6 +23,7 @@ struct AlgorithmEvent {
     int toLocationId{-1};
     int roadId{-1};
     double value{0.0};
+    int candidateId{-1};
 };
 
 } // namespace smartcity::algorithms

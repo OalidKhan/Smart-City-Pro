@@ -401,11 +401,12 @@ void CityMapPage::updateRoadDrawings(int locationId)
 void CityMapPage::updateSummary(const QString& message)
 {
     const auto& graph = repository_.city();
-    summaryLabel_->setText(QString("%1 locations · %2 roads · graph revision %3%4")
+    summaryLabel_->setText(QString("%1 locations · %2 roads · %3 construction candidates · graph revision %4%5")
                                .arg(static_cast<qulonglong>(graph.vertexCount()))
                                .arg(static_cast<qulonglong>(graph.roadCount()))
-                               .arg(static_cast<qulonglong>(graph.revision()))
-                               .arg(message.isEmpty() ? QString() : "  —  " + message));
+                                 .arg(static_cast<qulonglong>(graph.constructionCandidateCount()))
+                                 .arg(static_cast<qulonglong>(graph.revision()))
+                                 .arg(message.isEmpty() ? QString() : "  —  " + message));
 }
 
 void CityMapPage::addLocation()
@@ -564,11 +565,17 @@ void CityMapPage::deleteSelected()
     auto& graph = repository_.city();
     if (auto* location = dynamic_cast<LocationGraphicsItem*>(selected.front())) {
         std::size_t connected = 0;
+        std::size_t connectedCandidates = 0;
         for (const auto& entry : graph.roads())
             if (entry.second.fromLocationId == location->id() || entry.second.toLocationId == location->id()) ++connected;
+        for (const auto& entry : graph.constructionCandidates())
+            if (entry.second.firstLocationId == location->id()
+                || entry.second.secondLocationId == location->id()) ++connectedCandidates;
         if (QMessageBox::question(this, "Delete location",
-                QString("Delete this location and its %1 connected road(s)?").arg(connected)) != QMessageBox::Yes) return;
-        graph.removeLocation(location->id()); rebuildScene(); updateSummary("Location and connected roads deleted");
+                QString("Delete this location, its %1 connected road(s), and its %2 construction candidate(s)?")
+                    .arg(connected).arg(connectedCandidates)) != QMessageBox::Yes) return;
+        graph.removeLocation(location->id()); rebuildScene();
+        updateSummary("Location, connected roads, and construction candidates deleted");
     } else if (auto* road = dynamic_cast<RoadGraphicsItem*>(selected.front())) {
         if (QMessageBox::question(this, "Delete road", "Delete the selected road?") != QMessageBox::Yes) return;
         graph.removeRoad(road->id()); rebuildScene(); updateSummary("Road deleted");

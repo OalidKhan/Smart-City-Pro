@@ -57,6 +57,11 @@ QString eventDescription(const AlgorithmEvent& event)
         return QString("Updated best weight for L%1 to %2").arg(event.locationId).arg(event.value, 0, 'f', 2);
     case AlgorithmEventType::FinalRouteNode: return QString("Final route includes L%1").arg(event.locationId);
     case AlgorithmEventType::FinalRouteEdge: return QString("Final route includes road R%1").arg(event.roadId);
+    case AlgorithmEventType::ComponentStarted:
+    case AlgorithmEventType::CandidateConsidered:
+    case AlgorithmEventType::CandidateAccepted:
+    case AlgorithmEventType::CandidateRejected:
+        return "Infrastructure-planning event";
     case AlgorithmEventType::Finished: return "Animation complete";
     }
     return {};

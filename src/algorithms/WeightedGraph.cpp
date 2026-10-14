@@ -19,6 +19,14 @@ int WeightedGraph::nextRoadId() noexcept
     return nextRoadId_++;
 }
 
+int WeightedGraph::nextCandidateId() noexcept
+{
+    while (constructionCandidates_.find(nextCandidateId_) != constructionCandidates_.end()) {
+        ++nextCandidateId_;
+    }
+    return nextCandidateId_++;
+}
+
 bool WeightedGraph::addLocation(const core::CityLocation& location)
 {
     if (!location.isValid() || location.id == std::numeric_limits<int>::max()
@@ -61,6 +69,15 @@ bool WeightedGraph::removeLocation(int locationId)
             ++iterator;
         }
     }
+    for (auto iterator = constructionCandidates_.begin();
+         iterator != constructionCandidates_.end();) {
+        const auto& candidate = iterator->second;
+        if (candidate.firstLocationId == locationId || candidate.secondLocationId == locationId) {
+            iterator = constructionCandidates_.erase(iterator);
+        } else {
+            ++iterator;
+        }
+    }
     rebuildAdjacency();
     touch();
     return true;
@@ -99,6 +116,36 @@ bool WeightedGraph::removeRoad(int roadId)
     return true;
 }
 
+bool WeightedGraph::addConstructionCandidate(const core::ConstructionCandidate& candidate)
+{
+    if (candidate.id < 0 || candidate.id == std::numeric_limits<int>::max()
+        || candidate.firstLocationId == candidate.secondLocationId || !candidate.hasValidCost()
+        || !containsVertex(candidate.firstLocationId) || !containsVertex(candidate.secondLocationId)
+        || constructionCandidates_.find(candidate.id) != constructionCandidates_.end()) return false;
+    constructionCandidates_.emplace(candidate.id, candidate);
+    nextCandidateId_ = std::max(nextCandidateId_, candidate.id + 1);
+    touch();
+    return true;
+}
+
+bool WeightedGraph::updateConstructionCandidate(const core::ConstructionCandidate& candidate)
+{
+    auto found = constructionCandidates_.find(candidate.id);
+    if (found == constructionCandidates_.end()
+        || candidate.firstLocationId == candidate.secondLocationId || !candidate.hasValidCost()
+        || !containsVertex(candidate.firstLocationId) || !containsVertex(candidate.secondLocationId)) return false;
+    found->second = candidate;
+    touch();
+    return true;
+}
+
+bool WeightedGraph::removeConstructionCandidate(int candidateId)
+{
+    if (constructionCandidates_.erase(candidateId) == 0) return false;
+    touch();
+    return true;
+}
+
 bool WeightedGraph::containsVertex(int vertexId) const noexcept
 {
     return locations_.find(vertexId) != locations_.end();
@@ -106,6 +153,10 @@ bool WeightedGraph::containsVertex(int vertexId) const noexcept
 
 std::size_t WeightedGraph::vertexCount() const noexcept { return locations_.size(); }
 std::size_t WeightedGraph::roadCount() const noexcept { return roads_.size(); }
+std::size_t WeightedGraph::constructionCandidateCount() const noexcept
+{
+    return constructionCandidates_.size();
+}
 
 const core::CityLocation* WeightedGraph::location(int locationId) const noexcept
 {
@@ -119,6 +170,12 @@ const core::Road* WeightedGraph::road(int roadId) const noexcept
     return found == roads_.end() ? nullptr : &found->second;
 }
 
+const core::ConstructionCandidate* WeightedGraph::constructionCandidate(int candidateId) const noexcept
+{
+    const auto found = constructionCandidates_.find(candidateId);
+    return found == constructionCandidates_.end() ? nullptr : &found->second;
+}
+
 const std::unordered_map<int, core::CityLocation>& WeightedGraph::locations() const noexcept
 {
     return locations_;
@@ -127,6 +184,12 @@ const std::unordered_map<int, core::CityLocation>& WeightedGraph::locations() co
 const std::unordered_map<int, core::Road>& WeightedGraph::roads() const noexcept
 {
     return roads_;
+}
+
+const std::unordered_map<int, core::ConstructionCandidate>&
+WeightedGraph::constructionCandidates() const noexcept
+{
+    return constructionCandidates_;
 }
 
 const std::vector<WeightedGraph::Edge>& WeightedGraph::neighbors(int vertexId) const
@@ -143,9 +206,11 @@ void WeightedGraph::replaceWith(const WeightedGraph& other)
     const auto nextRevision = revision_ + 1;
     locations_ = other.locations_;
     roads_ = other.roads_;
+    constructionCandidates_ = other.constructionCandidates_;
     adjacencyList_ = other.adjacencyList_;
     nextLocationId_ = other.nextLocationId_;
     nextRoadId_ = other.nextRoadId_;
+    nextCandidateId_ = other.nextCandidateId_;
     revision_ = nextRevision;
 }
 
