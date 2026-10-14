@@ -1,0 +1,21 @@
+{
+    "schemaVersion": 1,
+    "graphRevision": 13,
+    "locations": [
+        { "id": 0, "name": "Civic Square", "x": 160, "y": 130, "category": "intersection" },
+        { "id": 1, "name": "Northside Hospital", "x": 475, "y": 105, "category": "hospital" },
+        { "id": 2, "name": "Riverside University", "x": 390, "y": 335, "category": "university" },
+        { "id": 3, "name": "Green Market", "x": 105, "y": 360, "category": "market" },
+        { "id": 4, "name": "Lakeview Homes", "x": 650, "y": 300, "category": "residential area" },
+        { "id": 5, "name": "Central Ambulance", "x": 660, "y": 120, "category": "ambulance station" }
+    ],
+    "roads": [
+        { "id": 0, "from": 0, "to": 1, "distance": 4.2, "travelTime": 7.5, "constructionCost": 125000, "direction": "two-way", "closed": false },
+        { "id": 1, "from": 0, "to": 2, "distance": 3.8, "travelTime": 6.8, "constructionCost": 98000, "direction": "two-way", "closed": false },
+        { "id": 2, "from": 0, "to": 3, "distance": 3.1, "travelTime": 5.4, "constructionCost": 87000, "direction": "one-way", "closed": false },
+        { "id": 3, "from": 1, "to": 2, "distance": 2.6, "travelTime": 4.9, "constructionCost": 72000, "direction": "two-way", "closed": false },
+        { "id": 4, "from": 1, "to": 5, "distance": 2.1, "travelTime": 3.6, "constructionCost": 64000, "direction": "two-way", "closed": false },
+        { "id": 5, "from": 2, "to": 4, "distance": 3.0, "travelTime": 5.2, "constructionCost": 110000, "direction": "one-way", "closed": false },
+        { "id": 6, "from": 4, "to": 5, "distance": 2.4, "travelTime": 4.0, "constructionCost": 76000, "direction": "two-way", "closed": true }
+    ]
+}
