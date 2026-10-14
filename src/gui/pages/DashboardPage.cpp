@@ -75,11 +75,11 @@ DashboardPage::DashboardPage(const smartcity::services::CityRepository& reposito
     notice->setObjectName("infoPanel");
     auto* noticeLayout = new QVBoxLayout(notice);
     noticeLayout->setContentsMargins(22, 18, 22, 18);
-    auto* noticeTitle = new QLabel("Part 3 shortest routes", notice);
+    auto* noticeTitle = new QLabel("Part 4 all-pairs routes", notice);
     noticeTitle->setObjectName("sectionTitle");
     auto* noticeText = new QLabel(
-        "The City Map editor remains available, and Route Finder now provides animated Dijkstra, BFS, and DFS demonstrations. "
-        "All-pairs routing, dispatch, optimization, and performance analysis remain intentionally unimplemented.",
+        "The city editor and animated Route Finder remain available. All-Pairs Routes now computes cached distance or travel-time "
+        "matrices with Floyd–Warshall. Dispatch, optimization, and performance analysis remain intentionally unimplemented.",
         notice);
     noticeText->setObjectName("pageDescription");
     noticeText->setWordWrap(true);
