@@ -1,6 +1,6 @@
-# SmartCity Pro — Part 3
+# SmartCity Pro — Part 4
 
-SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 3 preserves the interactive city editor and adds animated shortest-route and traversal demonstrations.
+SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 4 preserves the editor and single-route tools while adding an asynchronous Floyd–Warshall all-pairs planner.
 
 ## Implemented features
 
@@ -21,8 +21,13 @@ SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 3 pres
 - BFS and DFS traversal demonstrations with directed reachability results
 - A reusable, Qt-free algorithm-event format
 - Non-blocking play, pause, single-step, reset, and speed-controlled animation
+- Floyd–Warshall distance and travel-time matrices with next-hop/road reconstruction
+- Background computation from immutable graph snapshots with stale-result rejection
+- Results cached by graph revision and weight mode
+- Labeled matrix cells that show `Unreachable` instead of a numeric sentinel
+- Pair selection with reconstructed route highlighting on a map
 
-All-pairs routing, dispatch, delivery optimization, the general Algorithm Lab, and benchmarking remain placeholders for later parts.
+Dispatch, delivery optimization, the general Algorithm Lab, and benchmarking remain placeholders for later parts.
 
 ## Project structure
 
@@ -39,7 +44,8 @@ SmartCity/
 │   ├── algorithms/
 │   │   ├── WeightedGraph.h/.cpp
 │   │   ├── AlgorithmEvent.h
-│   │   └── RouteAlgorithms.h/.cpp
+│   │   ├── RouteAlgorithms.h/.cpp
+│   │   └── FloydWarshall.h/.cpp
 │   ├── services/
 │   │   ├── CityRepository.h/.cpp
 │   │   └── CityJsonSerializer.h/.cpp
@@ -50,6 +56,7 @@ SmartCity/
 │           ├── DashboardPage.h/.cpp
 │           ├── CityMapPage.h/.cpp
 │           ├── RouteFinderPage.h/.cpp
+│           ├── AllPairsRoutesPage.h/.cpp
 │           └── PlaceholderPage.h/.cpp
 └── tests/core_tests.cpp
 ```
@@ -94,6 +101,16 @@ If a JSON file is malformed, has duplicate IDs, missing endpoints, unknown categ
 
 BFS can minimize the number of edges in an unweighted graph. It does not minimize weighted distance, travel time, or construction cost. DFS does not guarantee a shortest path.
 
+## Try the All-Pairs Route Planner
+
+1. Select **All-Pairs Routes** and choose distance or travel-time mode.
+2. Select **Compute matrix**. Work runs on an immutable graph copy, so the GUI remains responsive.
+3. Matrix rows are sources and columns are destinations. The diagonal is zero and disconnected pairs say **Unreachable**.
+4. Choose a source and destination to reconstruct and highlight that pair's route.
+5. Switching back to an already-computed mode uses the cached result while the graph revision is unchanged.
+
+Full matrix visualization is limited to 40 locations to keep the table readable. Pair routing remains available above that size, while computation itself is capped at 250 locations to prevent accidental cubic workloads. Editing or loading the city changes its graph revision and invalidates cached results. If the graph changes while a worker is running, its stale result is discarded.
+
 ## Architecture notes
 
 - `WeightedGraph` is the source of truth. It owns locations, roads, ID generation, directed adjacency lists, validation, connected-road cleanup, and the graph revision.
@@ -104,12 +121,16 @@ BFS can minimize the number of edges in an unweighted graph. It does not minimiz
 - `RouteAlgorithms` contains Dijkstra, BFS, and DFS and depends only on standard C++ and `WeightedGraph`.
 - `AlgorithmEvent` represents visits, explored edges, distance updates, and final-path elements without any GUI types.
 - `AlgorithmAnimationController` replays precomputed events with `QTimer`; it never blocks the GUI event loop.
+- `FloydWarshall` initializes zero diagonals and infinity for other pairs, consumes only open directed adjacency entries, and maintains next-hop and next-road matrices.
+- `AllPairsRoutesPage` uses Qt Concurrent only at the GUI boundary. The worker receives a complete graph copy and never touches widgets or mutable live data.
 
 ## Complexity
 
 With `V` locations and `E` directed adjacency entries, Dijkstra uses an adjacency list and binary min-priority queue. Its time complexity is `O((V + E) log V)`, commonly written `O(E log V)` for a connected graph. Distances, parents, and settled state use `O(V)` space. This implementation uses lazy priority-queue updates, so queued entries can use `O(E)` space; including recorded animation events, auxiliary space is `O(V + E)`.
 
 A two-way road contributes two directed adjacency entries, while a one-way road contributes one. Closed roads remain in the model but are skipped by routing and traversal. BFS and DFS each run in `O(V + E)` time and use `O(V)` traversal storage, in addition to the graph and recorded events.
+
+Floyd–Warshall uses `O(V³)` time because it considers every `(source, intermediate, destination)` combination. Its weight, next-hop, and next-road matrices each use `O(V²)` space, so total asymptotic space is `O(V²)`. Before adding two partial weights, the implementation rejects infinity operands and values that would exceed `double`'s finite maximum.
 
 ## JSON format
 

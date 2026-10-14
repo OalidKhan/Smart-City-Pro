@@ -1,11 +1,14 @@
 #include "algorithms/WeightedGraph.h"
 #include "algorithms/RouteAlgorithms.h"
+#include "algorithms/FloydWarshall.h"
 #include "core/models/CityLocation.h"
 #include "core/models/Road.h"
 #include "services/CityRepository.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -116,6 +119,65 @@ int main()
             "DFS should ignore closed roads to disconnected locations");
     require(!RouteAlgorithms::traverse(routes, 4, 0, TraversalKind::BreadthFirst).destinationReachable,
             "BFS should respect one-way roads");
+
+    const auto allDistances = smartcity::algorithms::FloydWarshall::compute(
+        routes, RouteMetric::Distance);
+    const auto allTimes = smartcity::algorithms::FloydWarshall::compute(
+        routes, RouteMetric::TravelTime);
+    const auto reconstructedDistance = allDistances.reconstructPath(0, 2);
+    require(reconstructedDistance.reachable && reconstructedDistance.totalWeight == 2.0,
+            "Floyd-Warshall should find the known distance answer");
+    require(reconstructedDistance.locationIds == distanceRoute.locationIds
+                && reconstructedDistance.roadIds == distanceRoute.roadIds,
+            "Floyd-Warshall should reconstruct the same known path as Dijkstra");
+    require(allTimes.reconstructPath(0, 2).totalWeight == timeRoute.totalWeight,
+            "Floyd-Warshall travel time should match Dijkstra");
+    require(allDistances.reconstructPath(1, 1).reachable
+                && allDistances.reconstructPath(1, 1).totalWeight == 0.0,
+            "all-pairs diagonal entries should be zero");
+    require(allDistances.weights.at(1).at(1) == 0.0
+                && std::isinf(allDistances.weights.at(0).at(3)),
+            "matrix should use zero diagonals and infinity for unreachable pairs");
+    require(!allDistances.isReachable(0, 3) && !allDistances.isReachable(0, 5),
+            "closed-only and disconnected pairs should remain unreachable");
+    require(!allDistances.isReachable(4, 2),
+            "all-pairs routing should respect one-way roads");
+
+    for (const auto metric : {RouteMetric::Distance, RouteMetric::TravelTime}) {
+        const auto allPairs = smartcity::algorithms::FloydWarshall::compute(routes, metric);
+        for (int source = 0; source <= 5; ++source) {
+            for (int destination = 0; destination <= 5; ++destination) {
+                const auto singleSource = RouteAlgorithms::dijkstra(routes, source, destination, metric);
+                const auto allPairsPath = allPairs.reconstructPath(source, destination);
+                const bool dijkstraReachable = singleSource.status == RouteStatus::Found
+                    || singleSource.status == RouteStatus::Trivial;
+                require(allPairsPath.reachable == dijkstraReachable,
+                        "Floyd-Warshall and Dijkstra reachability should agree");
+                if (dijkstraReachable) {
+                    require(std::abs(allPairsPath.totalWeight - singleSource.totalWeight) < 1e-9,
+                            "Floyd-Warshall and Dijkstra weights should agree");
+                }
+            }
+        }
+    }
+
+    WeightedGraph overflowGraph;
+    require(overflowGraph.addLocation({0, "A", 0.0, 0.0, LocationCategory::Intersection}),
+            "overflow test location A should be added");
+    require(overflowGraph.addLocation({1, "B", 1.0, 0.0, LocationCategory::Intersection}),
+            "overflow test location B should be added");
+    require(overflowGraph.addLocation({2, "C", 2.0, 0.0, LocationCategory::Intersection}),
+            "overflow test location C should be added");
+    const double hugeWeight = std::numeric_limits<double>::max() * 0.75;
+    require(overflowGraph.addRoad(
+                {0, 0, 1, hugeWeight, hugeWeight, 0.0, RoadDirection::OneWay, false}),
+            "first huge road should be added");
+    require(overflowGraph.addRoad(
+                {1, 1, 2, hugeWeight, hugeWeight, 0.0, RoadDirection::OneWay, false}),
+            "second huge road should be added");
+    require(!smartcity::algorithms::FloydWarshall::compute(overflowGraph, RouteMetric::Distance)
+                 .isReachable(0, 2),
+            "overflowing path sums should remain infinity rather than wrap or corrupt the matrix");
 
     const smartcity::services::CityRepository repository;
     require(repository.city().vertexCount() == 6, "sample city should contain six locations");
