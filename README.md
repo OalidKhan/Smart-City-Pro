@@ -1,6 +1,6 @@
-# SmartCity Pro — Part 2
+# SmartCity Pro — Part 3
 
-SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 2 preserves the Part 1 application shell and adds an interactive, JSON-backed city map editor built with `QGraphicsView` and `QGraphicsScene`.
+SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 3 preserves the interactive city editor and adds animated shortest-route and traversal demonstrations.
 
 ## Implemented features
 
@@ -15,8 +15,14 @@ SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 2 pres
 - Monotonic graph revision counter for future route-cache invalidation
 - A fictional six-location, seven-road sample city, including one closed road
 - Qt-free graph/model code based on standard C++ adjacency-list containers
+- Dijkstra routing that minimizes either distance or travel time
+- Reconstructed location and road ID paths with route totals
+- Correct handling of closed roads, one-way roads, zero-weight edges, unreachable destinations, and start = destination
+- BFS and DFS traversal demonstrations with directed reachability results
+- A reusable, Qt-free algorithm-event format
+- Non-blocking play, pause, single-step, reset, and speed-controlled animation
 
-Route finding, dispatch, delivery optimization, algorithm visualization, and benchmarking remain placeholders for later parts.
+All-pairs routing, dispatch, delivery optimization, the general Algorithm Lab, and benchmarking remain placeholders for later parts.
 
 ## Project structure
 
@@ -30,15 +36,20 @@ SmartCity/
 │   ├── core/models/
 │   │   ├── CityLocation.h/.cpp
 │   │   └── Road.h/.cpp
-│   ├── algorithms/WeightedGraph.h/.cpp
+│   ├── algorithms/
+│   │   ├── WeightedGraph.h/.cpp
+│   │   ├── AlgorithmEvent.h
+│   │   └── RouteAlgorithms.h/.cpp
 │   ├── services/
 │   │   ├── CityRepository.h/.cpp
 │   │   └── CityJsonSerializer.h/.cpp
 │   └── gui/
 │       ├── MainWindow.h/.cpp
+│       ├── animation/AlgorithmAnimationController.h/.cpp
 │       └── pages/
 │           ├── DashboardPage.h/.cpp
 │           ├── CityMapPage.h/.cpp
+│           ├── RouteFinderPage.h/.cpp
 │           └── PlaceholderPage.h/.cpp
 └── tests/core_tests.cpp
 ```
@@ -73,6 +84,16 @@ For a multi-configuration generator, append `--config Debug` to the build comman
 
 If a JSON file is malformed, has duplicate IDs, missing endpoints, unknown categories/directions, non-finite values, negative road weights, or self-loop roads, loading is rejected and the current city remains unchanged.
 
+## Try the Route Finder
+
+1. Select **Route Finder** in the sidebar. Its selectors and drawing refresh from the graph whenever the graph revision changes.
+2. Choose start and destination locations, choose distance or travel time, and select **Find shortest route**.
+3. The result panel shows the ordered location IDs/names, the road IDs used, and the total in kilometres or minutes.
+4. Use **Play**, **Pause**, **Step**, and **Reset** to inspect the event sequence. Change the speed slider at any time.
+5. Choose **Run BFS** or **Run DFS** for directed reachability demonstrations. Closed roads are ignored in all three algorithms.
+
+BFS can minimize the number of edges in an unweighted graph. It does not minimize weighted distance, travel time, or construction cost. DFS does not guarantee a shortest path.
+
 ## Architecture notes
 
 - `WeightedGraph` is the source of truth. It owns locations, roads, ID generation, directed adjacency lists, validation, connected-road cleanup, and the graph revision.
@@ -80,6 +101,15 @@ If a JSON file is malformed, has duplicate IDs, missing endpoints, unknown categ
 - `CityJsonSerializer` uses Qt's JSON classes at the service boundary. It parses into a temporary `WeightedGraph`; only a fully valid graph replaces the live one.
 - `CityRepository` constructs the default fictional city. It does not keep a second copy of graph data.
 - Location and road models, and the graph implementation, do not include or depend on Qt.
+- `RouteAlgorithms` contains Dijkstra, BFS, and DFS and depends only on standard C++ and `WeightedGraph`.
+- `AlgorithmEvent` represents visits, explored edges, distance updates, and final-path elements without any GUI types.
+- `AlgorithmAnimationController` replays precomputed events with `QTimer`; it never blocks the GUI event loop.
+
+## Complexity
+
+With `V` locations and `E` directed adjacency entries, Dijkstra uses an adjacency list and binary min-priority queue. Its time complexity is `O((V + E) log V)`, commonly written `O(E log V)` for a connected graph. Distances, parents, and settled state use `O(V)` space. This implementation uses lazy priority-queue updates, so queued entries can use `O(E)` space; including recorded animation events, auxiliary space is `O(V + E)`.
+
+A two-way road contributes two directed adjacency entries, while a one-way road contributes one. Closed roads remain in the model but are skipped by routing and traversal. BFS and DFS each run in `O(V + E)` time and use `O(V)` traversal storage, in addition to the graph and recorded events.
 
 ## JSON format
 
