@@ -75,11 +75,11 @@ DashboardPage::DashboardPage(const smartcity::services::CityRepository& reposito
     notice->setObjectName("infoPanel");
     auto* noticeLayout = new QVBoxLayout(notice);
     noticeLayout->setContentsMargins(22, 18, 22, 18);
-    auto* noticeTitle = new QLabel("Part 6 emergency dispatch simulation", notice);
+    auto* noticeTitle = new QLabel("Part 7 delivery optimization", notice);
     noticeTitle->setObjectName("sectionTitle");
     auto* noticeText = new QLabel(
-        "The educational dispatch simulator now queues requests, reserves ambulances and hospital beds, and animates reroutable journeys using travel-time Dijkstra. "
-        "The editor, route planners, and infrastructure tools remain available. Delivery optimization and performance analysis remain intentionally unimplemented.",
+        "The Delivery Optimizer now manages indivisible packages, solves bounded 0/1 Knapsack instances, demonstrates Fractional Knapsack separately, and displays independent Dijkstra routes from the depot. "
+        "The map editor, route planners, infrastructure tools, and educational dispatch simulator remain available.",
         notice);
     noticeText->setObjectName("pageDescription");
     noticeText->setWordWrap(true);

@@ -1,6 +1,6 @@
-# SmartCity Pro — Part 6
+# SmartCity Pro — Part 7
 
-SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 6 preserves the map, routing, and infrastructure tools while adding an educational ambulance-dispatch simulation. It never contacts real emergency services.
+SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 7 preserves the map, routing, infrastructure, and educational dispatch tools while adding a delivery package optimizer.
 
 ## Implemented features
 
@@ -44,8 +44,15 @@ SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 6 pres
 - Graph-revision detection and rerouting at the next node after road changes
 - Cancellation, unavailable-resource, unreachable-route, and failed-transport handling
 - Atomic, validated dispatch-state JSON save/load
+- Delivery packages with stable IDs, graph-backed destinations, positive integer weights, nonnegative values, priorities, and vehicle capacity
+- Qt-free 0/1 Knapsack dynamic programming with exact selected/unselected reconstruction
+- Total selected weight/value and remaining-capacity reporting
+- Optional DP-table visualization capped at 20 packages and capacity 100
+- A separate Fractional Knapsack demonstration for explicitly divisible cargo
+- Independent Dijkstra routes from the depot to each selected destination, clearly distinguished from a multi-stop tour
+- Atomic, validated delivery-scenario JSON save/load and a bounded two-million-cell DP allocation
 
-Delivery optimization, the general Algorithm Lab, and benchmarking remain placeholders for later parts.
+The general Algorithm Lab and benchmarking remain placeholders for later parts.
 
 ## Project structure
 
@@ -61,6 +68,7 @@ SmartCity/
 │   │   ├── CityLocation.h/.cpp
 │   │   ├── ConstructionCandidate.h/.cpp
 │   │   ├── EmergencyModels.h/.cpp
+│   │   ├── DeliveryPackage.h/.cpp
 │   │   └── Road.h/.cpp
 │   ├── algorithms/
 │   │   ├── WeightedGraph.h/.cpp
@@ -68,12 +76,15 @@ SmartCity/
 │   │   ├── RouteAlgorithms.h/.cpp
 │   │   ├── FloydWarshall.h/.cpp
 │   │   ├── DisjointSetUnion.h/.cpp
+│   │   ├── KnapsackAlgorithms.h/.cpp
 │   │   └── InfrastructureAlgorithms.h/.cpp
 │   ├── services/
 │   │   ├── CityRepository.h/.cpp
 │   │   ├── CityJsonSerializer.h/.cpp
 │   │   ├── EmergencyDispatchSimulation.h/.cpp
-│   │   └── DispatchJsonSerializer.h/.cpp
+│   │   ├── DispatchJsonSerializer.h/.cpp
+│   │   ├── DeliveryScenario.h/.cpp
+│   │   └── DeliveryJsonSerializer.h/.cpp
 │   └── gui/
 │       ├── MainWindow.h/.cpp
 │       ├── animation/AlgorithmAnimationController.h/.cpp
@@ -84,6 +95,7 @@ SmartCity/
 │           ├── AllPairsRoutesPage.h/.cpp
 │           ├── InfrastructurePage.h/.cpp
 │           ├── EmergencyDispatchPage.h/.cpp
+│           ├── DeliveryOptimizerPage.h/.cpp
 │           └── PlaceholderPage.h/.cpp
 └── tests/core_tests.cpp
 ```
@@ -166,6 +178,16 @@ Response time is measured from request creation on the simulation clock until th
 
 Road changes never interrupt the ambulance partway along an edge. The simulator finishes the current discrete edge movement, detects the changed graph revision at the next node, and reruns Dijkstra before entering another edge.
 
+## Try the Delivery Optimizer
+
+1. Select **Delivery Optimizer**. Choose a depot and a positive vehicle capacity, then select **Apply settings**.
+2. Add, edit, or delete packages. A package has a stable ID, city destination, positive integer weight, nonnegative value, and priority.
+3. Select **Optimize 0/1 packages** to maximize total value without splitting packages. The table marks selected and unselected rows and reports weight, value, and unused capacity.
+4. Enable **Show DP table when small** to inspect the dynamic-programming states. Visualization is available for at most 20 packages and capacity 100; all optimization is rejected before allocation if it would exceed two million cells.
+5. Choose distance or travel time for the displayed Dijkstra routes. Each route is independently calculated from the depot to one selected destination. These routes are **not** an optimized multi-stop delivery tour.
+6. Select **Fractional cargo demo** to see the separate ratio-greedy result for divisible cargo. Its fractions must not be interpreted as selections of indivisible delivery packages.
+7. Use **Save delivery JSON** and **Load delivery JSON**. `samples/sample-delivery.json` matches the supplied fictional city. Invalid JSON or missing city locations leave the live scenario unchanged.
+
 ## Architecture notes
 
 - `WeightedGraph` is the source of truth. It owns locations, travel roads, explicit construction candidates, ID generation, directed travel adjacency lists, validation, connected-record cleanup, and the graph revision.
@@ -183,6 +205,9 @@ Road changes never interrupt the ambulance partway along an edge. The simulator 
 - `EmergencyDispatchSimulation` is a Qt-free state machine. It owns the clock, resources, requests, reservations, planned legs, and node-level transitions while reusing the Qt-free Dijkstra implementation.
 - `EmergencyDispatchPage` uses a GUI timer to advance one graph edge without blocking the event loop. It renders current ambulance nodes and the most recent journey edge.
 - `DispatchJsonSerializer` writes atomically and parses into temporary model vectors. The live simulation is replaced only after all references and reservation invariants validate against the current city graph.
+- `DeliveryScenario` is Qt-free and owns package data, capacity, and the depot while validating every location reference against the graph.
+- `KnapsackAlgorithms` uses only standard C++ containers. It implements 0/1 dynamic programming and reconstruction independently from the distinct Fractional Knapsack demonstration.
+- `DeliveryJsonSerializer` writes atomically and replaces live delivery data only after a temporary scenario validates completely.
 
 ## Complexity
 
@@ -200,11 +225,15 @@ For `A` available ambulances and `H` eligible hospitals, a dispatch can run up t
 
 The dispatch rule is deliberately greedy: it chooses the fastest ambulance and hospital for the next highest-priority request using current information. That is a local decision. It does not minimize total response time, missed coverage, or resource usage across several present or future requests; globally optimal multi-request assignment requires a different optimization model.
 
+For `n` packages and integer capacity `W`, 0/1 Knapsack uses `O(nW)` time and `O(nW)` space in this implementation so the table can be reconstructed and optionally displayed. This is **pseudo-polynomial**, because the runtime depends on the numeric capacity rather than only the number of bits needed to encode it. Greedily selecting the highest value/weight ratio is not generally optimal for 0/1 Knapsack; for weights `10, 20, 30`, values `60, 100, 120`, and capacity `50`, greedy takes value `160`, while dynamic programming finds value `220`. Ratio-greedy selection is correct for the separate Fractional Knapsack problem because cargo may be divided.
+
 ## JSON format
 
 The root object contains `schemaVersion`, informational `graphRevision`, `locations`, `roads`, and `constructionCandidates`. Older schema-version-1 files without the optional candidate array still load with an empty candidate network. Categories use these exact strings: `intersection`, `hospital`, `university`, `market`, `residential area`, and `ambulance station`. Road direction is `one-way` or `two-way`. A construction candidate stores `id`, `first`, `second`, and `constructionCost` and is always interpreted as undirected.
 
 Dispatch data uses a separate schema-version-1 JSON document containing `simulationClockMinutes`, `ambulances`, `hospitals`, and `requests`. Keeping it separate allows a city layout to be reused with different simulation scenarios. Loading rejects missing locations, duplicate IDs, invalid states, unknown enum values, inconsistent assignments, and malformed reservation records without changing the current simulation.
+
+Delivery data uses a separate schema-version-1 JSON document containing `depotLocation`, `vehicleCapacity`, and `packages`. Package records contain `id`, `destination`, `weight`, `value`, and `priority`. Loading validates the full document and all graph references before replacing the current scenario.
 
 ## Verification note
 

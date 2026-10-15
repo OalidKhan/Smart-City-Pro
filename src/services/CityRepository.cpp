@@ -42,6 +42,13 @@ CityRepository::CityRepository()
     dispatchSimulation_.addHospital({
         1, 3, {core::EmergencyService::General, core::EmergencyService::Trauma,
                core::EmergencyService::Cardiac, core::EmergencyService::Pediatric}}, city_);
+
+    deliveryScenario_.setDepotLocation(0, city_);
+    deliveryScenario_.setVehicleCapacity(7);
+    deliveryScenario_.addPackage({0, 1, 2, 6.0, core::PackagePriority::High}, city_);
+    deliveryScenario_.addPackage({1, 2, 2, 10.0, core::PackagePriority::Medium}, city_);
+    deliveryScenario_.addPackage({2, 3, 3, 12.0, core::PackagePriority::High}, city_);
+    deliveryScenario_.addPackage({3, 4, 6, 18.0, core::PackagePriority::Low}, city_);
 }
 
 algorithms::WeightedGraph& CityRepository::city() noexcept { return city_; }
@@ -54,5 +61,7 @@ const EmergencyDispatchSimulation& CityRepository::dispatchSimulation() const no
 {
     return dispatchSimulation_;
 }
+DeliveryScenario& CityRepository::deliveryScenario() noexcept { return deliveryScenario_; }
+const DeliveryScenario& CityRepository::deliveryScenario() const noexcept { return deliveryScenario_; }
 
 } // namespace smartcity::services
