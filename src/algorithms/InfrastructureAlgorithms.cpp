@@ -9,6 +9,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 namespace smartcity::algorithms {
 namespace {
@@ -37,18 +38,23 @@ std::vector<int> sortedLocationIds(const WeightedGraph& graph)
 } // namespace
 
 SpanningForestResult InfrastructureAlgorithms::minimumSpanningForest(
-    const WeightedGraph& graph, InfrastructureAlgorithm algorithm)
+    const WeightedGraph& graph, InfrastructureAlgorithm algorithm, bool recordEvents)
 {
-    return algorithm == InfrastructureAlgorithm::Prim ? prim(graph) : kruskal(graph);
+    return algorithm == InfrastructureAlgorithm::Prim
+        ? prim(graph, recordEvents) : kruskal(graph, recordEvents);
 }
 
-SpanningForestResult InfrastructureAlgorithms::prim(const WeightedGraph& graph)
+SpanningForestResult InfrastructureAlgorithms::prim(const WeightedGraph& graph,
+                                                     bool recordEvents)
 {
     SpanningForestResult result;
-    result.events.push_back({AlgorithmEventType::Started});
+    const auto emit = [&result, recordEvents](AlgorithmEvent event) {
+        if (recordEvents) result.events.push_back(std::move(event));
+    };
+    if (recordEvents) emit({AlgorithmEventType::Started});
     const auto locationIds = sortedLocationIds(graph);
     if (locationIds.empty()) {
-        result.events.push_back({AlgorithmEventType::Finished});
+        if (recordEvents) emit({AlgorithmEventType::Finished});
         return result;
     }
 
@@ -70,9 +76,9 @@ SpanningForestResult InfrastructureAlgorithms::prim(const WeightedGraph& graph)
         AlgorithmEvent component;
         component.type = AlgorithmEventType::ComponentStarted;
         component.locationId = start;
-        result.events.push_back(component);
+        if (recordEvents) emit(component);
         visited.insert(start);
-        result.events.push_back({AlgorithmEventType::NodeVisited, start});
+        if (recordEvents) emit({AlgorithmEventType::NodeVisited, start});
 
         const auto addIncident = [&](int locationId) {
             for (const int candidateId : incident.at(locationId)) {
@@ -90,34 +96,42 @@ SpanningForestResult InfrastructureAlgorithms::prim(const WeightedGraph& graph)
         while (!queue.empty()) {
             const auto [cost, candidateId, from, to] = queue.top();
             queue.pop();
-            result.events.push_back(candidateEvent(
-                AlgorithmEventType::CandidateConsidered, candidateId, from, to, cost));
+            if (recordEvents)
+                emit(candidateEvent(
+                    AlgorithmEventType::CandidateConsidered, candidateId, from, to, cost));
             if (visited.find(to) != visited.end()) {
-                result.events.push_back(candidateEvent(
-                    AlgorithmEventType::CandidateRejected, candidateId, from, to, cost));
+                if (recordEvents)
+                    emit(candidateEvent(
+                        AlgorithmEventType::CandidateRejected, candidateId, from, to, cost));
                 continue;
             }
             visited.insert(to);
             result.candidateIds.push_back(candidateId);
             result.totalCost += cost;
-            result.events.push_back(candidateEvent(
-                AlgorithmEventType::CandidateAccepted, candidateId, from, to, cost));
-            result.events.push_back({AlgorithmEventType::NodeVisited, to});
+            if (recordEvents) {
+                emit(candidateEvent(
+                    AlgorithmEventType::CandidateAccepted, candidateId, from, to, cost));
+                emit({AlgorithmEventType::NodeVisited, to});
+            }
             addIncident(to);
         }
     }
-    result.events.push_back({AlgorithmEventType::Finished});
+    if (recordEvents) emit({AlgorithmEventType::Finished});
     return result;
 }
 
-SpanningForestResult InfrastructureAlgorithms::kruskal(const WeightedGraph& graph)
+SpanningForestResult InfrastructureAlgorithms::kruskal(const WeightedGraph& graph,
+                                                        bool recordEvents)
 {
     SpanningForestResult result;
-    result.events.push_back({AlgorithmEventType::Started});
+    const auto emit = [&result, recordEvents](AlgorithmEvent event) {
+        if (recordEvents) result.events.push_back(std::move(event));
+    };
+    if (recordEvents) emit({AlgorithmEventType::Started});
     const auto locationIds = sortedLocationIds(graph);
     result.componentCount = static_cast<int>(locationIds.size());
     if (locationIds.empty()) {
-        result.events.push_back({AlgorithmEventType::Finished});
+        if (recordEvents) emit({AlgorithmEventType::Finished});
         return result;
     }
 
@@ -136,24 +150,27 @@ SpanningForestResult InfrastructureAlgorithms::kruskal(const WeightedGraph& grap
 
     DisjointSetUnion sets(locationIds.size());
     for (const auto* candidate : candidates) {
-        result.events.push_back(candidateEvent(AlgorithmEventType::CandidateConsidered,
-            candidate->id, candidate->firstLocationId, candidate->secondLocationId,
-            candidate->constructionCost));
+        if (recordEvents)
+            emit(candidateEvent(AlgorithmEventType::CandidateConsidered,
+                candidate->id, candidate->firstLocationId, candidate->secondLocationId,
+                candidate->constructionCost));
         if (sets.unite(indexById.at(candidate->firstLocationId),
                        indexById.at(candidate->secondLocationId))) {
             result.candidateIds.push_back(candidate->id);
             result.totalCost += candidate->constructionCost;
-            result.events.push_back(candidateEvent(AlgorithmEventType::CandidateAccepted,
-                candidate->id, candidate->firstLocationId, candidate->secondLocationId,
-                candidate->constructionCost));
+            if (recordEvents)
+                emit(candidateEvent(AlgorithmEventType::CandidateAccepted,
+                    candidate->id, candidate->firstLocationId, candidate->secondLocationId,
+                    candidate->constructionCost));
         } else {
-            result.events.push_back(candidateEvent(AlgorithmEventType::CandidateRejected,
-                candidate->id, candidate->firstLocationId, candidate->secondLocationId,
-                candidate->constructionCost));
+            if (recordEvents)
+                emit(candidateEvent(AlgorithmEventType::CandidateRejected,
+                    candidate->id, candidate->firstLocationId, candidate->secondLocationId,
+                    candidate->constructionCost));
         }
     }
     result.componentCount = static_cast<int>(sets.componentCount());
-    result.events.push_back({AlgorithmEventType::Finished});
+    if (recordEvents) emit({AlgorithmEventType::Finished});
     return result;
 }
 

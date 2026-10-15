@@ -48,7 +48,8 @@ public:
 
     [[nodiscard]] static SortResult sort(const std::vector<double>& input,
                                          SortAlgorithm algorithm,
-                                         SortOrder order);
+                                         SortOrder order,
+                                         bool recordEvents = true);
     [[nodiscard]] static SearchResult binarySearch(const std::vector<double>& sortedInput,
                                                    double target,
                                                    SortOrder order);

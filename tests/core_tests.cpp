@@ -171,6 +171,15 @@ int main()
     require(!allDistances.isReachable(4, 2),
             "all-pairs routing should respect one-way roads");
 
+    auto cacheRevisionGraph = routes;
+    const auto cachedRoutes = smartcity::algorithms::FloydWarshall::compute(
+        cacheRevisionGraph, RouteMetric::Distance);
+    auto cacheChangingRoad = *cacheRevisionGraph.road(1);
+    cacheChangingRoad.distance += 1.0;
+    require(cacheRevisionGraph.updateRoad(cacheChangingRoad)
+                && cachedRoutes.graphRevision != cacheRevisionGraph.revision(),
+            "a graph edit should make a revision-keyed route cache stale");
+
     for (const auto metric : {RouteMetric::Distance, RouteMetric::TravelTime}) {
         const auto allPairs = smartcity::algorithms::FloydWarshall::compute(routes, metric);
         for (int source = 0; source <= 5; ++source) {
@@ -396,6 +405,17 @@ int main()
             "0/1 Knapsack should reconstruct the known optimal package set");
     require(zeroOne.totalValue > 160.0,
             "0/1 dynamic programming should beat greedy ratio selection on the classic counterexample");
+    double bruteKnapsackValue = 0.0;
+    for (std::size_t mask = 0; mask < (std::size_t{1} << knapsackPackages.size()); ++mask) {
+        int weight = 0; double value = 0.0;
+        for (std::size_t index = 0; index < knapsackPackages.size(); ++index) {
+            if ((mask & (std::size_t{1} << index)) == 0) continue;
+            weight += knapsackPackages[index].weight; value += knapsackPackages[index].value;
+        }
+        if (weight <= 50) bruteKnapsackValue = std::max(bruteKnapsackValue, value);
+    }
+    require(std::abs(zeroOne.totalValue - bruteKnapsackValue) < 1e-9,
+            "0/1 Knapsack should agree with brute-force subsets on a tiny input");
     require(zeroOne.rowCount == 4 && zeroOne.columnCount == 51
                 && std::abs(zeroOne.tableValue(3, 50) - 220.0) < 1e-9,
             "small 0/1 inputs should expose a correct DP visualization table");
@@ -540,6 +560,27 @@ int main()
                 && tour.expandedLocationIds == std::vector<int>({0, 1, 2, 3, 0})
                 && tour.roadIds == std::vector<int>({0, 1, 2, 3}),
             "Held-Karp should reconstruct and expand the known directed minimum tour");
+    std::vector<int> bruteStops{1, 2, 3};
+    double bruteTourCost = std::numeric_limits<double>::infinity();
+    do {
+        int current = 0; double cost = 0.0; bool reachable = true;
+        for (int stop : bruteStops) {
+            const auto leg = RouteAlgorithms::dijkstra(
+                tourGraph, current, stop, RouteMetric::TravelTime, false);
+            if (leg.status != RouteStatus::Found && leg.status != RouteStatus::Trivial) {
+                reachable = false; break;
+            }
+            cost += leg.totalWeight; current = stop;
+        }
+        const auto returnLeg = RouteAlgorithms::dijkstra(
+            tourGraph, current, 0, RouteMetric::TravelTime, false);
+        if (returnLeg.status != RouteStatus::Found && returnLeg.status != RouteStatus::Trivial)
+            reachable = false;
+        else cost += returnLeg.totalWeight;
+        if (reachable) bruteTourCost = std::min(bruteTourCost, cost);
+    } while (std::next_permutation(bruteStops.begin(), bruteStops.end()));
+    require(std::abs(tour.totalTravelTime - bruteTourCost) < 1e-9,
+            "Held-Karp should agree with brute-force permutations on a tiny input");
     require(smartcity::algorithms::DeliveryTourPlanner::compute(tourGraph, 0, {}).status
                 == smartcity::algorithms::DeliveryTourStatus::Trivial,
             "a depot with no selected stops should produce a trivial zero-cost tour");

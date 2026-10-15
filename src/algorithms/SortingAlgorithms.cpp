@@ -8,14 +8,14 @@ namespace {
 
 class SortEngine {
 public:
-    SortEngine(const std::vector<double>& input, SortOrder order)
-        : values_(input), order_(order) {}
+    SortEngine(const std::vector<double>& input, SortOrder order, bool recordEvents)
+        : values_(input), order_(order), recordEvents_(recordEvents) {}
 
     SortResult run(SortAlgorithm algorithm)
     {
         SortResult result;
         for (double value : values_) if (!std::isfinite(value)) return result;
-        emit({AlgorithmEventType::Started});
+        if (recordEvents_) emit({AlgorithmEventType::Started});
         if (!values_.empty()) {
             switch (algorithm) {
             case SortAlgorithm::Bubble: bubble(); break;
@@ -28,7 +28,7 @@ public:
         }
         AlgorithmEvent finished{AlgorithmEventType::Finished};
         if (!values_.empty()) { finished.rangeStart = 0; finished.rangeEnd = static_cast<int>(values_.size()) - 1; }
-        emit(finished);
+        if (recordEvents_) emit(finished);
         result.validInput = true;
         result.values = std::move(values_);
         result.counters = counters_;
@@ -44,16 +44,20 @@ private:
     bool compareBefore(int leftIndex, int rightIndex)
     {
         ++counters_.comparisons;
-        AlgorithmEvent event{AlgorithmEventType::ArrayCompared};
-        event.indexA = leftIndex; event.indexB = rightIndex; emit(event);
+        if (recordEvents_) {
+            AlgorithmEvent event{AlgorithmEventType::ArrayCompared};
+            event.indexA = leftIndex; event.indexB = rightIndex; emit(event);
+        }
         return before(values_[static_cast<std::size_t>(leftIndex)], values_[static_cast<std::size_t>(rightIndex)]);
     }
 
     bool compareValues(double left, double right, int leftIndex, int rightIndex)
     {
         ++counters_.comparisons;
-        AlgorithmEvent event{AlgorithmEventType::ArrayCompared};
-        event.indexA = leftIndex; event.indexB = rightIndex; emit(event);
+        if (recordEvents_) {
+            AlgorithmEvent event{AlgorithmEventType::ArrayCompared};
+            event.indexA = leftIndex; event.indexB = rightIndex; emit(event);
+        }
         return before(left, right);
     }
 
@@ -62,21 +66,27 @@ private:
         if (first == second) return;
         std::swap(values_[static_cast<std::size_t>(first)], values_[static_cast<std::size_t>(second)]);
         ++counters_.swaps; counters_.writes += 2;
-        AlgorithmEvent event{AlgorithmEventType::ArraySwapped};
-        event.indexA = first; event.indexB = second; emit(event);
+        if (recordEvents_) {
+            AlgorithmEvent event{AlgorithmEventType::ArraySwapped};
+            event.indexA = first; event.indexB = second; emit(event);
+        }
     }
 
     void writeAt(int index, double value)
     {
         values_[static_cast<std::size_t>(index)] = value; ++counters_.writes;
-        AlgorithmEvent event{AlgorithmEventType::ArrayWritten};
-        event.indexA = index; event.value = value; emit(event);
+        if (recordEvents_) {
+            AlgorithmEvent event{AlgorithmEventType::ArrayWritten};
+            event.indexA = index; event.value = value; emit(event);
+        }
     }
 
     void mark(int first, int last)
     {
-        AlgorithmEvent event{AlgorithmEventType::ArrayRangeMarked};
-        event.rangeStart = first; event.rangeEnd = last; emit(event);
+        if (recordEvents_) {
+            AlgorithmEvent event{AlgorithmEventType::ArrayRangeMarked};
+            event.rangeStart = first; event.rangeEnd = last; emit(event);
+        }
     }
 
     void emit(const AlgorithmEvent& event)
@@ -192,6 +202,7 @@ private:
     OperationCounters counters_;
     std::vector<AlgorithmEvent> events_;
     bool eventLimitReached_{false};
+    bool recordEvents_{true};
 };
 
 bool inputSorted(const std::vector<double>& values, SortOrder order)
@@ -205,9 +216,10 @@ bool inputSorted(const std::vector<double>& values, SortOrder order)
 }
 
 SortResult SortingAlgorithms::sort(const std::vector<double>& input,
-                                   SortAlgorithm algorithm, SortOrder order)
+                                   SortAlgorithm algorithm, SortOrder order,
+                                   bool recordEvents)
 {
-    return SortEngine(input, order).run(algorithm);
+    return SortEngine(input, order, recordEvents).run(algorithm);
 }
 
 SearchResult SortingAlgorithms::binarySearch(const std::vector<double>& sortedInput,
