@@ -1,6 +1,6 @@
-# SmartCity Pro — Part 7
+# SmartCity Pro — Part 8
 
-SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 7 preserves the map, routing, infrastructure, and educational dispatch tools while adding a delivery package optimizer.
+SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 8 preserves all earlier city modules while adding a Sorting and Searching Lab.
 
 ## Implemented features
 
@@ -51,8 +51,16 @@ SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 7 pres
 - A separate Fractional Knapsack demonstration for explicitly divisible cargo
 - Independent Dijkstra routes from the depot to each selected destination, clearly distinguished from a multi-stop tour
 - Atomic, validated delivery-scenario JSON save/load and a bounded two-million-cell DP allocation
+- Manual Bubble Sort with early stopping, Selection Sort, Insertion Sort, Merge Sort, Quick Sort, and Heap Sort
+- Manual Binary Search for ascending or descending sorted datasets
+- Reproducible random, sorted, reverse-sorted, and duplicate-heavy generators with explicit seeds
+- Copied imports of road distance/time/cost and package weight/value/priority data
+- Shared play, pause, step, reset, and speed-controlled algorithm animation
+- Precisely defined comparison, swap, and write counters with compared/processed-region highlighting
+- A 100,000-event storage cap so large inputs can finish without unbounded animation memory
+- Per-algorithm time, auxiliary-space, stability, and divide-and-conquer descriptions
 
-The general Algorithm Lab and benchmarking remain placeholders for later parts.
+Benchmarking remains a placeholder for a later part.
 
 ## Project structure
 
@@ -62,6 +70,7 @@ SmartCity/
 ├── README.md
 ├── samples/sample-city.json
 ├── samples/sample-dispatch.json
+├── samples/sample-delivery.json
 ├── src/
 │   ├── main.cpp
 │   ├── core/models/
@@ -77,6 +86,7 @@ SmartCity/
 │   │   ├── FloydWarshall.h/.cpp
 │   │   ├── DisjointSetUnion.h/.cpp
 │   │   ├── KnapsackAlgorithms.h/.cpp
+│   │   ├── SortingAlgorithms.h/.cpp
 │   │   └── InfrastructureAlgorithms.h/.cpp
 │   ├── services/
 │   │   ├── CityRepository.h/.cpp
@@ -96,6 +106,7 @@ SmartCity/
 │           ├── InfrastructurePage.h/.cpp
 │           ├── EmergencyDispatchPage.h/.cpp
 │           ├── DeliveryOptimizerPage.h/.cpp
+│           ├── AlgorithmLabPage.h/.cpp
 │           └── PlaceholderPage.h/.cpp
 └── tests/core_tests.cpp
 ```
@@ -188,6 +199,17 @@ Road changes never interrupt the ambulance partway along an edge. The simulator 
 6. Select **Fractional cargo demo** to see the separate ratio-greedy result for divisible cargo. Its fractions must not be interpreted as selections of indivisible delivery packages.
 7. Use **Save delivery JSON** and **Load delivery JSON**. `samples/sample-delivery.json` matches the supplied fictional city. Invalid JSON or missing city locations leave the live scenario unchanged.
 
+## Try the Sorting and Searching Lab
+
+1. Select **Algorithm Lab**. Enter comma/space-separated finite numbers, or generate a reproducible dataset by choosing its shape, size, and seed.
+2. **Import values** copies a numeric road or package field into the lab. Sorting never modifies the source roads or delivery packages.
+3. Choose one of the six algorithms and ascending or descending order, then select **Prepare sort animation**.
+4. Use **Play**, **Pause**, **Step**, **Reset**, and the speed slider. Orange bars are compared or changed; green bars show the current processed/sorted region.
+5. The live counters use these definitions: one comparison tests two values; a swap exchanges two different array positions and also counts as two writes; a write assigns one array position.
+6. After preparing a sort, enter a target and select **Search sorted result**. Binary Search rejects unsorted data and supports the order recorded with the result.
+
+At most 2,000 values can be entered through the GUI, only the first 120 are drawn, and at most 100,000 animation events are stored. The complete sort still runs and its final output/counters remain available if the event cap is reached.
+
 ## Architecture notes
 
 - `WeightedGraph` is the source of truth. It owns locations, travel roads, explicit construction candidates, ID generation, directed travel adjacency lists, validation, connected-record cleanup, and the graph revision.
@@ -208,6 +230,8 @@ Road changes never interrupt the ambulance partway along an edge. The simulator 
 - `DeliveryScenario` is Qt-free and owns package data, capacity, and the depot while validating every location reference against the graph.
 - `KnapsackAlgorithms` uses only standard C++ containers. It implements 0/1 dynamic programming and reconstruction independently from the distinct Fractional Knapsack demonstration.
 - `DeliveryJsonSerializer` writes atomically and replaces live delivery data only after a temporary scenario validates completely.
+- `SortingAlgorithms` is Qt-free and uses standard containers. None of its sorting implementations call `std::sort`; tests use `std::sort` only as an independent reference result.
+- `AlgorithmLabPage` generates or copies datasets and replays the same `AlgorithmEvent` format and timer controller used by earlier visualizations.
 
 ## Complexity
 
@@ -227,6 +251,8 @@ The dispatch rule is deliberately greedy: it chooses the fastest ambulance and h
 
 For `n` packages and integer capacity `W`, 0/1 Knapsack uses `O(nW)` time and `O(nW)` space in this implementation so the table can be reconstructed and optionally displayed. This is **pseudo-polynomial**, because the runtime depends on the numeric capacity rather than only the number of bits needed to encode it. Greedily selecting the highest value/weight ratio is not generally optimal for 0/1 Knapsack; for weights `10, 20, 30`, values `60, 100, 120`, and capacity `50`, greedy takes value `160`, while dynamic programming finds value `220`. Ratio-greedy selection is correct for the separate Fractional Knapsack problem because cargo may be divided.
 
+Sorting profiles are shown in the lab. Bubble, Selection, and Insertion Sort are `O(n²)` in the general/worst case; Bubble and Insertion have `O(n)` best cases on already ordered input. Merge Sort is stable, runs in `O(n log n)`, and uses `O(n)` auxiliary space. Quick Sort is not stable, averages `O(n log n)`, can degrade to `O(n²)` with this deterministic pivot strategy, and uses recursive stack space. Heap Sort is not stable, runs in `O(n log n)`, and uses `O(1)` auxiliary array space. Merge Sort and Quick Sort are divide-and-conquer algorithms: they split the problem into subproblems, solve them recursively, then merge or partition their results. Binary Search runs in `O(log n)` time and `O(1)` iterative auxiliary space, but requires sorted input.
+
 ## JSON format
 
 The root object contains `schemaVersion`, informational `graphRevision`, `locations`, `roads`, and `constructionCandidates`. Older schema-version-1 files without the optional candidate array still load with an empty candidate network. Categories use these exact strings: `intersection`, `hospital`, `university`, `market`, `residential area`, and `ambulance station`. Road direction is `one-way` or `two-way`. A construction candidate stores `id`, `first`, `second`, and `constructionCost` and is always interpreted as undirected.
@@ -237,4 +263,4 @@ Delivery data uses a separate schema-version-1 JSON document containing `depotLo
 
 ## Verification note
 
-See the delivery response for the checks performed in the creation environment. A Qt 6 desktop kit is required for a full GUI compile and runtime test.
+See the task response for the checks performed in the creation environment. A Qt 6 desktop kit is required for a full GUI compile and runtime test.

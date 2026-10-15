@@ -13,6 +13,12 @@ enum class AlgorithmEventType {
     CandidateConsidered,
     CandidateAccepted,
     CandidateRejected,
+    ArrayCompared,
+    ArraySwapped,
+    ArrayWritten,
+    ArrayRangeMarked,
+    SearchProbe,
+    SearchFound,
     Finished
 };
 
@@ -24,6 +30,10 @@ struct AlgorithmEvent {
     int roadId{-1};
     double value{0.0};
     int candidateId{-1};
+    int indexA{-1};
+    int indexB{-1};
+    int rangeStart{-1};
+    int rangeEnd{-1};
 };
 
 } // namespace smartcity::algorithms

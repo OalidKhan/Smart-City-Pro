@@ -75,11 +75,11 @@ DashboardPage::DashboardPage(const smartcity::services::CityRepository& reposito
     notice->setObjectName("infoPanel");
     auto* noticeLayout = new QVBoxLayout(notice);
     noticeLayout->setContentsMargins(22, 18, 22, 18);
-    auto* noticeTitle = new QLabel("Part 7 delivery optimization", notice);
+    auto* noticeTitle = new QLabel("Part 8 sorting and searching lab", notice);
     noticeTitle->setObjectName("sectionTitle");
     auto* noticeText = new QLabel(
-        "The Delivery Optimizer now manages indivisible packages, solves bounded 0/1 Knapsack instances, demonstrates Fractional Knapsack separately, and displays independent Dijkstra routes from the depot. "
-        "The map editor, route planners, infrastructure tools, and educational dispatch simulator remain available.",
+        "The Algorithm Lab now animates six manually implemented sorting algorithms and Binary Search with reproducible datasets, operation counters, complexity profiles, and copied road/package inputs. "
+        "All earlier map, routing, infrastructure, dispatch, and delivery modules remain available.",
         notice);
     noticeText->setObjectName("pageDescription");
     noticeText->setWordWrap(true);

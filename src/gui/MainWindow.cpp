@@ -1,6 +1,7 @@
 #include "gui/MainWindow.h"
 
 #include "gui/pages/AllPairsRoutesPage.h"
+#include "gui/pages/AlgorithmLabPage.h"
 #include "gui/pages/CityMapPage.h"
 #include "gui/pages/DashboardPage.h"
 #include "gui/pages/DeliveryOptimizerPage.h"
@@ -26,7 +27,7 @@ MainWindow::MainWindow(QWidget* parent)
     resize(1280, 780);
     buildInterface();
     applyTheme();
-    statusBar()->showMessage("Ready — Part 7 delivery optimizer loaded");
+    statusBar()->showMessage("Ready — Part 8 sorting and searching lab loaded");
 }
 
 void MainWindow::buildInterface()
@@ -63,13 +64,12 @@ void MainWindow::buildInterface()
     addNavigationItem("Infrastructure", new InfrastructurePage(repository_, pageStack_));
     addNavigationItem("Emergency Dispatch", new EmergencyDispatchPage(repository_, pageStack_));
     addNavigationItem("Delivery Optimizer", new DeliveryOptimizerPage(repository_, pageStack_));
-    addNavigationItem("Algorithm Lab", new PlaceholderPage(
-        "Algorithm Lab", "A general-purpose algorithm sandbox is planned; Route Finder already includes routing animations.", pageStack_));
+    addNavigationItem("Algorithm Lab", new AlgorithmLabPage(repository_, pageStack_));
     addNavigationItem("Performance", new PlaceholderPage(
         "Performance", "Benchmark collection and complexity charts are planned for a later part.", pageStack_));
 
     navigationLayout->addStretch();
-    auto* version = new QLabel("University Algorithms Project\nPart 7 · v0.7", navigationContainer_);
+    auto* version = new QLabel("University Algorithms Project\nPart 8 · v0.8", navigationContainer_);
     version->setObjectName("sidebarFooter");
     navigationLayout->addWidget(version);
 
@@ -263,6 +263,11 @@ void MainWindow::applyTheme()
             border-radius: 7px;
         }
         QGraphicsView#deliveryView {
+            background: #f8fafc;
+            border: 1px solid #dbe3ee;
+            border-radius: 7px;
+        }
+        QGraphicsView#algorithmLabView {
             background: #f8fafc;
             border: 1px solid #dbe3ee;
             border-radius: 7px;
