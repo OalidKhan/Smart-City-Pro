@@ -4,6 +4,7 @@
 #include "algorithms/DisjointSetUnion.h"
 #include "algorithms/InfrastructureAlgorithms.h"
 #include "algorithms/KnapsackAlgorithms.h"
+#include "algorithms/SortingAlgorithms.h"
 #include "core/models/CityLocation.h"
 #include "core/models/EmergencyModels.h"
 #include "core/models/Road.h"
@@ -13,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -420,6 +422,74 @@ int main()
             "delivery scenario should reject a missing destination");
     require(delivery.referencesLocation(0),
             "delivery scenario should report depot and package location references");
+
+    const std::vector<double> sortingInput{5.0, -1.0, 5.0, 0.0, 3.5, -7.0, 3.5};
+    auto ascendingReference = sortingInput;
+    std::sort(ascendingReference.begin(), ascendingReference.end());
+    auto descendingReference = sortingInput;
+    std::sort(descendingReference.begin(), descendingReference.end(), std::greater<double>());
+    using smartcity::algorithms::SortAlgorithm;
+    using smartcity::algorithms::SortOrder;
+    for (const auto algorithm : {SortAlgorithm::Bubble, SortAlgorithm::Selection,
+                                 SortAlgorithm::Insertion, SortAlgorithm::Merge,
+                                 SortAlgorithm::Quick, SortAlgorithm::Heap}) {
+        const auto ascending = smartcity::algorithms::SortingAlgorithms::sort(
+            sortingInput, algorithm, SortOrder::Ascending);
+        const auto descending = smartcity::algorithms::SortingAlgorithms::sort(
+            sortingInput, algorithm, SortOrder::Descending);
+        require(ascending.validInput && ascending.values == ascendingReference,
+                "manual ascending sort should match std::sort reference output");
+        require(descending.validInput && descending.values == descendingReference,
+                "manual descending sort should match std::sort reference output");
+        auto replayed = sortingInput;
+        for (const auto& event : ascending.events) {
+            if (event.type == smartcity::algorithms::AlgorithmEventType::ArraySwapped)
+                std::swap(replayed.at(static_cast<std::size_t>(event.indexA)),
+                          replayed.at(static_cast<std::size_t>(event.indexB)));
+            else if (event.type == smartcity::algorithms::AlgorithmEventType::ArrayWritten)
+                replayed.at(static_cast<std::size_t>(event.indexA)) = event.value;
+        }
+        require(replayed == ascendingReference,
+                "uncapped sorting events should replay to the computed result");
+    }
+    const auto alreadySortedBubble = smartcity::algorithms::SortingAlgorithms::sort(
+        ascendingReference, SortAlgorithm::Bubble, SortOrder::Ascending);
+    require(alreadySortedBubble.counters.comparisons == ascendingReference.size() - 1
+                && alreadySortedBubble.counters.swaps == 0,
+            "Bubble Sort should stop after one unchanged pass");
+    const auto foundSearch = smartcity::algorithms::SortingAlgorithms::binarySearch(
+        ascendingReference, 3.5, SortOrder::Ascending);
+    require(foundSearch.validInput && foundSearch.found
+                && ascendingReference.at(static_cast<std::size_t>(foundSearch.index)) == 3.5,
+            "Binary Search should find a duplicate target in ascending data");
+    const auto descendingSearch = smartcity::algorithms::SortingAlgorithms::binarySearch(
+        descendingReference, -7.0, SortOrder::Descending);
+    require(descendingSearch.validInput && descendingSearch.found,
+            "Binary Search should support descending data");
+    require(!smartcity::algorithms::SortingAlgorithms::binarySearch(
+                sortingInput, 5.0, SortOrder::Ascending).validInput,
+            "Binary Search should reject unsorted input");
+    std::vector<double> largeReverse(500);
+    for (std::size_t index = 0; index < largeReverse.size(); ++index)
+        largeReverse[index] = static_cast<double>(largeReverse.size() - index);
+    auto largeReference = largeReverse;
+    std::sort(largeReference.begin(), largeReference.end());
+    const auto cappedEvents = smartcity::algorithms::SortingAlgorithms::sort(
+        largeReverse, SortAlgorithm::Bubble, SortOrder::Ascending);
+    require(cappedEvents.values == largeReference
+                && cappedEvents.eventLimitReached
+                && cappedEvents.events.size()
+                    == smartcity::algorithms::SortingAlgorithms::MaximumStoredEvents,
+            "large sorts should complete correctly while capping stored animation events");
+    const auto mergeProfile = smartcity::algorithms::SortingAlgorithms::profile(SortAlgorithm::Merge);
+    const auto quickProfile = smartcity::algorithms::SortingAlgorithms::profile(SortAlgorithm::Quick);
+    require(smartcity::algorithms::SortingAlgorithms::profile(SortAlgorithm::Bubble).stable
+                && !smartcity::algorithms::SortingAlgorithms::profile(SortAlgorithm::Selection).stable
+                && smartcity::algorithms::SortingAlgorithms::profile(SortAlgorithm::Insertion).stable
+                && mergeProfile.stable && mergeProfile.divideAndConquer
+                && !quickProfile.stable && quickProfile.divideAndConquer
+                && !smartcity::algorithms::SortingAlgorithms::profile(SortAlgorithm::Heap).stable,
+            "algorithm profiles should distinguish stability and divide-and-conquer sorts");
 
     const smartcity::services::CityRepository repository;
     require(repository.city().vertexCount() == 6, "sample city should contain six locations");

@@ -62,6 +62,13 @@ QString eventDescription(const AlgorithmEvent& event)
     case AlgorithmEventType::CandidateAccepted:
     case AlgorithmEventType::CandidateRejected:
         return "Infrastructure-planning event";
+    case AlgorithmEventType::ArrayCompared:
+    case AlgorithmEventType::ArraySwapped:
+    case AlgorithmEventType::ArrayWritten:
+    case AlgorithmEventType::ArrayRangeMarked:
+    case AlgorithmEventType::SearchProbe:
+    case AlgorithmEventType::SearchFound:
+        return "Array-algorithm event";
     case AlgorithmEventType::Finished: return "Animation complete";
     }
     return {};
