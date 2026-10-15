@@ -64,7 +64,7 @@ DashboardPage::DashboardPage(const smartcity::services::CityRepository& reposito
                                       "Sample locations", "Stored in the Qt-free city model", this), 0, 0);
     cards->addWidget(createMetricCard(QString::number(repository.city().roadCount()),
                                       "Sample roads", "Directed travel-network records", this), 0, 1);
-    cards->addWidget(createMetricCard("9", "Project modules",
+    cards->addWidget(createMetricCard("10", "Project modules",
                                       "Ready for future algorithm features", this), 0, 2);
     cards->setColumnStretch(0, 1);
     cards->setColumnStretch(1, 1);
@@ -75,11 +75,11 @@ DashboardPage::DashboardPage(const smartcity::services::CityRepository& reposito
     notice->setObjectName("infoPanel");
     auto* noticeLayout = new QVBoxLayout(notice);
     noticeLayout->setContentsMargins(22, 18, 22, 18);
-    auto* noticeTitle = new QLabel("Part 8 sorting and searching lab", notice);
+    auto* noticeTitle = new QLabel("Part 9 number theory and advanced delivery", notice);
     noticeTitle->setObjectName("sectionTitle");
     auto* noticeText = new QLabel(
-        "The Algorithm Lab now animates six manually implemented sorting algorithms and Binary Search with reproducible datasets, operation counters, complexity profiles, and copied road/package inputs. "
-        "All earlier map, routing, infrastructure, dispatch, and delivery modules remain available.",
+        "Advanced Planning now traces Euclid/LCM maintenance calculations and computes exact small multi-stop delivery tours with pairwise Dijkstra and Held–Karp dynamic programming. "
+        "All earlier map, routing, infrastructure, dispatch, delivery, and algorithm-lab modules remain available.",
         notice);
     noticeText->setObjectName("pageDescription");
     noticeText->setWordWrap(true);

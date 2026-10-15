@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(SmartCityPro VERSION 0.8.0 LANGUAGES CXX)
+project(SmartCityPro VERSION 0.9.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -34,6 +34,10 @@ add_library(smartcity_core
     src/algorithms/KnapsackAlgorithms.h
     src/algorithms/SortingAlgorithms.cpp
     src/algorithms/SortingAlgorithms.h
+    src/algorithms/NumberTheoryAlgorithms.cpp
+    src/algorithms/NumberTheoryAlgorithms.h
+    src/algorithms/DeliveryTourPlanner.cpp
+    src/algorithms/DeliveryTourPlanner.h
     src/services/CityRepository.cpp
     src/services/CityRepository.h
     src/services/EmergencyDispatchSimulation.cpp
@@ -68,6 +72,8 @@ add_executable(SmartCityPro
     src/gui/pages/DeliveryOptimizerPage.h
     src/gui/pages/AlgorithmLabPage.cpp
     src/gui/pages/AlgorithmLabPage.h
+    src/gui/pages/AdvancedPlanningPage.cpp
+    src/gui/pages/AdvancedPlanningPage.h
     src/services/CityJsonSerializer.cpp
     src/services/CityJsonSerializer.h
     src/services/DispatchJsonSerializer.cpp

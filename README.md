@@ -1,6 +1,6 @@
-# SmartCity Pro — Part 8
+# SmartCity Pro — Part 9
 
-SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 8 preserves all earlier city modules while adding a Sorting and Searching Lab.
+SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 9 preserves all earlier city modules while adding number-theory maintenance planning and exact small multi-stop delivery tours.
 
 ## Implemented features
 
@@ -59,6 +59,13 @@ SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 8 pres
 - Precisely defined comparison, swap, and write counters with compared/processed-region highlighting
 - A 100,000-event storage cap so large inputs can finish without unbounded animation memory
 - Per-algorithm time, auxiliary-space, stability, and divide-and-conquer descriptions
+- Euclid GCD calculation with visible division/remainder steps
+- Overflow-safe LCM accumulation using division before multiplication
+- Coincident maintenance-cycle planning under an explicit common-start-time assumption
+- Exact Held–Karp bitmask DP tours for at most 12 selected delivery stops
+- Pairwise travel-time Dijkstra paths respecting road direction and closures
+- Reconstructed service order, expanded location/road paths, and highlighted map routes
+- Immutable background tour computation with graph-revision stale-result rejection
 
 Benchmarking remains a placeholder for a later part.
 
@@ -87,6 +94,8 @@ SmartCity/
 │   │   ├── DisjointSetUnion.h/.cpp
 │   │   ├── KnapsackAlgorithms.h/.cpp
 │   │   ├── SortingAlgorithms.h/.cpp
+│   │   ├── NumberTheoryAlgorithms.h/.cpp
+│   │   ├── DeliveryTourPlanner.h/.cpp
 │   │   └── InfrastructureAlgorithms.h/.cpp
 │   ├── services/
 │   │   ├── CityRepository.h/.cpp
@@ -107,6 +116,7 @@ SmartCity/
 │           ├── EmergencyDispatchPage.h/.cpp
 │           ├── DeliveryOptimizerPage.h/.cpp
 │           ├── AlgorithmLabPage.h/.cpp
+│           ├── AdvancedPlanningPage.h/.cpp
 │           └── PlaceholderPage.h/.cpp
 └── tests/core_tests.cpp
 ```
@@ -210,6 +220,24 @@ Road changes never interrupt the ambulance partway along an edge. The simulator 
 
 At most 2,000 values can be entered through the GUI, only the first 120 are drawn, and at most 100,000 animation events are stored. The complete sort still runs and its final output/counters remain available if the event cap is reached.
 
+## Try Advanced Planning
+
+### Maintenance Cycle Planner
+
+1. Select **Advanced Planning**, then the **Maintenance Cycles** tab.
+2. Enter comma/space-separated positive integer intervals such as `6, 8, 12` and select **Calculate cycles**.
+3. The page shows Euclid remainder equations, each incremental LCM calculation, the overall GCD, and the first positive simulation-time offset when every cycle coincides.
+
+The planner assumes every maintenance cycle begins at the same simulation time. LCM uses `(a ÷ gcd(a,b)) × b`, and checks the divided value against the 64-bit maximum before multiplying. Zero, negative, non-integer, and out-of-range inputs are rejected; overflow produces no false coincidence time.
+
+### Small Multi-Stop Delivery Tour
+
+1. Open **Multi-Stop Delivery Tour**, choose a depot, and check at most 12 delivery locations.
+2. Select **Compute minimum tour**. Pairwise shortest travel-time paths and Held–Karp run on an immutable graph snapshot without blocking the interface.
+3. The result shows the scheduled service order, total travel time, expanded graph path, and highlighted road edges. One-way and closed roads are respected.
+
+A shortest leg may physically pass through a different selected delivery location. That transit does not service the location: it counts only when that location is the scheduled endpoint of the current Held–Karp leg. If the graph changes while work is running, the stale result is discarded. If a required closed tour cannot be constructed, the page reports it as unreachable.
+
 ## Architecture notes
 
 - `WeightedGraph` is the source of truth. It owns locations, travel roads, explicit construction candidates, ID generation, directed travel adjacency lists, validation, connected-record cleanup, and the graph revision.
@@ -232,6 +260,9 @@ At most 2,000 values can be entered through the GUI, only the first 120 are draw
 - `DeliveryJsonSerializer` writes atomically and replaces live delivery data only after a temporary scenario validates completely.
 - `SortingAlgorithms` is Qt-free and uses standard containers. None of its sorting implementations call `std::sort`; tests use `std::sort` only as an independent reference result.
 - `AlgorithmLabPage` generates or copies datasets and replays the same `AlgorithmEvent` format and timer controller used by earlier visualizations.
+- `NumberTheoryAlgorithms` is Qt-free and provides Euclid steps plus checked 64-bit maintenance-cycle LCM accumulation.
+- `DeliveryTourPlanner` is Qt-free. It builds a directed pairwise travel-time metric with Dijkstra, runs Held–Karp, reconstructs the service order, and expands every leg back to location and road IDs.
+- `AdvancedPlanningPage` submits a complete graph copy through Qt Concurrent and accepts the result only if its graph revision is still current.
 
 ## Complexity
 
@@ -252,6 +283,8 @@ The dispatch rule is deliberately greedy: it chooses the fastest ambulance and h
 For `n` packages and integer capacity `W`, 0/1 Knapsack uses `O(nW)` time and `O(nW)` space in this implementation so the table can be reconstructed and optionally displayed. This is **pseudo-polynomial**, because the runtime depends on the numeric capacity rather than only the number of bits needed to encode it. Greedily selecting the highest value/weight ratio is not generally optimal for 0/1 Knapsack; for weights `10, 20, 30`, values `60, 100, 120`, and capacity `50`, greedy takes value `160`, while dynamic programming finds value `220`. Ratio-greedy selection is correct for the separate Fractional Knapsack problem because cargo may be divided.
 
 Sorting profiles are shown in the lab. Bubble, Selection, and Insertion Sort are `O(n²)` in the general/worst case; Bubble and Insertion have `O(n)` best cases on already ordered input. Merge Sort is stable, runs in `O(n log n)`, and uses `O(n)` auxiliary space. Quick Sort is not stable, averages `O(n log n)`, can degrade to `O(n²)` with this deterministic pivot strategy, and uses recursive stack space. Heap Sort is not stable, runs in `O(n log n)`, and uses `O(1)` auxiliary array space. Merge Sort and Quick Sort are divide-and-conquer algorithms: they split the problem into subproblems, solve them recursively, then merge or partition their results. Binary Search runs in `O(log n)` time and `O(1)` iterative auxiliary space, but requires sorted input.
+
+For `k` selected delivery stops, Held–Karp stores a best cost and predecessor for each `(visited subset, final stop)` state. It uses `O(k² × 2^k)` time and `O(k × 2^k)` space. Pairwise path construction is additional: the planner runs travel-time Dijkstra between the depot/stops before the DP. The 12-stop limit bounds both runtime and memory while still demonstrating an exact travelling-salesperson-style algorithm.
 
 ## JSON format
 
