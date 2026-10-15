@@ -5,6 +5,8 @@
 #include "algorithms/InfrastructureAlgorithms.h"
 #include "algorithms/KnapsackAlgorithms.h"
 #include "algorithms/SortingAlgorithms.h"
+#include "algorithms/NumberTheoryAlgorithms.h"
+#include "algorithms/DeliveryTourPlanner.h"
 #include "core/models/CityLocation.h"
 #include "core/models/EmergencyModels.h"
 #include "core/models/Road.h"
@@ -490,6 +492,100 @@ int main()
                 && !quickProfile.stable && quickProfile.divideAndConquer
                 && !smartcity::algorithms::SortingAlgorithms::profile(SortAlgorithm::Heap).stable,
             "algorithm profiles should distinguish stability and divide-and-conquer sorts");
+
+    std::vector<smartcity::algorithms::EuclidStep> euclidSteps;
+    require(smartcity::algorithms::NumberTheoryAlgorithms::gcd(1071, 462, &euclidSteps) == 21
+                && euclidSteps.size() == 3
+                && euclidSteps.front().remainder == 147
+                && euclidSteps.back().remainder == 0,
+            "Euclid's algorithm should produce the known GCD and division steps");
+    const auto maintenance = smartcity::algorithms::NumberTheoryAlgorithms::maintenanceCycles(
+        {6, 8, 12});
+    require(maintenance.validInput && !maintenance.overflow
+                && maintenance.greatestCommonDivisor == 2
+                && maintenance.nextCoincidence == 24
+                && maintenance.gcdSteps.size() == 2
+                && !maintenance.gcdSteps.front().euclidSteps.empty(),
+            "maintenance cycles should produce the known combined GCD and LCM");
+    require(!smartcity::algorithms::NumberTheoryAlgorithms::maintenanceCycles({5, 0, 10}).validInput,
+            "zero maintenance intervals should be rejected");
+    const auto maintenanceOverflow =
+        smartcity::algorithms::NumberTheoryAlgorithms::maintenanceCycles(
+            {std::numeric_limits<std::uint64_t>::max(), 2});
+    require(maintenanceOverflow.validInput && maintenanceOverflow.overflow
+                && maintenanceOverflow.steps.back().overflow,
+            "LCM should detect 64-bit overflow before multiplication");
+    const auto safeLargeMaintenance =
+        smartcity::algorithms::NumberTheoryAlgorithms::maintenanceCycles(
+            {std::numeric_limits<std::uint64_t>::max() - 1, 2});
+    require(!safeLargeMaintenance.overflow
+                && safeLargeMaintenance.nextCoincidence
+                    == std::numeric_limits<std::uint64_t>::max() - 1,
+            "LCM division before multiplication should preserve a large representable result");
+
+    WeightedGraph tourGraph;
+    for (int id = 0; id < 4; ++id)
+        require(tourGraph.addLocation({id, "Tour " + std::to_string(id), id * 10.0, 0.0,
+                                       LocationCategory::Intersection}),
+                "tour test location should be added");
+    require(tourGraph.addRoad({0, 0, 1, 1.0, 1.0, 0.0, RoadDirection::OneWay, false})
+                && tourGraph.addRoad({1, 1, 2, 1.0, 1.0, 0.0, RoadDirection::OneWay, false})
+                && tourGraph.addRoad({2, 2, 3, 1.0, 1.0, 0.0, RoadDirection::OneWay, false})
+                && tourGraph.addRoad({3, 3, 0, 1.0, 1.0, 0.0, RoadDirection::OneWay, false}),
+            "directed tour cycle should be added");
+    const auto tour = smartcity::algorithms::DeliveryTourPlanner::compute(tourGraph, 0, {1, 2, 3});
+    require(tour.status == smartcity::algorithms::DeliveryTourStatus::Solved
+                && std::abs(tour.totalTravelTime - 4.0) < 1e-9
+                && tour.serviceOrder == std::vector<int>({0, 1, 2, 3, 0})
+                && tour.expandedLocationIds == std::vector<int>({0, 1, 2, 3, 0})
+                && tour.roadIds == std::vector<int>({0, 1, 2, 3}),
+            "Held-Karp should reconstruct and expand the known directed minimum tour");
+    require(smartcity::algorithms::DeliveryTourPlanner::compute(tourGraph, 0, {}).status
+                == smartcity::algorithms::DeliveryTourStatus::Trivial,
+            "a depot with no selected stops should produce a trivial zero-cost tour");
+    auto closedReturn = *tourGraph.road(3); closedReturn.closed = true;
+    require(tourGraph.updateRoad(closedReturn), "tour return road should close");
+    const auto unreachableTour = smartcity::algorithms::DeliveryTourPlanner::compute(
+        tourGraph, 0, {1, 2, 3});
+    require(unreachableTour.status == smartcity::algorithms::DeliveryTourStatus::Unreachable
+                && !unreachableTour.unreachableStopIds.empty(),
+            "tour planning should respect road direction and closures");
+    WeightedGraph transitGraph;
+    for (int id = 0; id < 3; ++id)
+        require(transitGraph.addLocation({id, "Transit", id * 5.0, 0.0,
+                                          LocationCategory::Intersection}),
+                "transit-semantics location should be added");
+    require(transitGraph.addRoad({0, 0, 1, 1.0, 1.0, 0.0, RoadDirection::OneWay, false})
+                && transitGraph.addRoad({1, 1, 2, 1.0, 1.0, 0.0,
+                                         RoadDirection::OneWay, false})
+                && transitGraph.addRoad({2, 2, 1, 1.0, 1.0, 0.0,
+                                         RoadDirection::OneWay, false})
+                && transitGraph.addRoad({3, 1, 0, 10.0, 10.0, 0.0,
+                                         RoadDirection::OneWay, false})
+                && transitGraph.addRoad({4, 2, 0, 100.0, 100.0, 0.0,
+                                         RoadDirection::OneWay, false}),
+            "transit-semantics roads should be added");
+    const auto transitTour = smartcity::algorithms::DeliveryTourPlanner::compute(
+        transitGraph, 0, {1, 2});
+    require(transitTour.status == smartcity::algorithms::DeliveryTourStatus::Solved
+                && transitTour.serviceOrder == std::vector<int>({0, 2, 1, 0})
+                && transitTour.expandedLocationIds == std::vector<int>({0, 1, 2, 1, 0}),
+            "passing through a selected stop should not service it before its scheduled DP arrival");
+    WeightedGraph oversizedTourGraph;
+    std::vector<int> thirteenStops;
+    require(oversizedTourGraph.addLocation({0, "Depot", 0.0, 0.0,
+                                            LocationCategory::Intersection}),
+            "oversized tour depot should be added");
+    for (int id = 1; id <= 13; ++id) {
+        require(oversizedTourGraph.addLocation({id, "Stop", id * 1.0, 0.0,
+                                                LocationCategory::ResidentialArea}),
+                "oversized tour stop should be added");
+        thirteenStops.push_back(id);
+    }
+    require(smartcity::algorithms::DeliveryTourPlanner::compute(
+                oversizedTourGraph, 0, thirteenStops).status
+                == smartcity::algorithms::DeliveryTourStatus::TooManyStops,
+            "Held-Karp should enforce the 12-stop limit before allocating DP state");
 
     const smartcity::services::CityRepository repository;
     require(repository.city().vertexCount() == 6, "sample city should contain six locations");
