@@ -1,6 +1,6 @@
-# SmartCity Pro — Part 9
+# SmartCity Pro — Part 10
 
-SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 9 preserves all earlier city modules while adding number-theory maintenance planning and exact small multi-stop delivery tours.
+SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 10 completes the integrated application with reproducible performance measurement, focused integration tests, and submission documentation.
 
 ## Implemented features
 
@@ -66,8 +66,13 @@ SmartCity Pro is a C++17/Qt 6 Widgets university algorithms project. Part 9 pres
 - Pairwise travel-time Dijkstra paths respecting road direction and closures
 - Reconstructed service order, expanded location/road paths, and highlighted map routes
 - Immutable background tour computation with graph-revision stale-result rejection
-
-Benchmarking remains a placeholder for a later part.
+- Background performance dashboard using `std::chrono::steady_clock`
+- Warm-up runs, repeated measurements, and median runtime reporting
+- Identical copied sorting workloads and shared graph snapshots for fair comparisons
+- Event-free benchmark execution that excludes rendering, animation delay, and dataset generation
+- Build mode, compiler, Qt/OS environment, seed, graph revision, and workload metadata
+- CSV export containing only measurements produced by an actual dashboard run
+- Separate theoretical-complexity and measured-runtime tables
 
 ## Project structure
 
@@ -78,6 +83,7 @@ SmartCity/
 ├── samples/sample-city.json
 ├── samples/sample-dispatch.json
 ├── samples/sample-delivery.json
+├── samples/DEMO_SCENARIOS.md
 ├── src/
 │   ├── main.cpp
 │   ├── core/models/
@@ -103,7 +109,8 @@ SmartCity/
 │   │   ├── EmergencyDispatchSimulation.h/.cpp
 │   │   ├── DispatchJsonSerializer.h/.cpp
 │   │   ├── DeliveryScenario.h/.cpp
-│   │   └── DeliveryJsonSerializer.h/.cpp
+│   │   ├── DeliveryJsonSerializer.h/.cpp
+│   │   └── BenchmarkSuite.h/.cpp
 │   └── gui/
 │       ├── MainWindow.h/.cpp
 │       ├── animation/AlgorithmAnimationController.h/.cpp
@@ -117,13 +124,15 @@ SmartCity/
 │           ├── DeliveryOptimizerPage.h/.cpp
 │           ├── AlgorithmLabPage.h/.cpp
 │           ├── AdvancedPlanningPage.h/.cpp
-│           └── PlaceholderPage.h/.cpp
-└── tests/core_tests.cpp
+│           └── PerformanceDashboardPage.h/.cpp
+└── tests/
+    ├── core_tests.cpp
+    └── integration_tests.cpp
 ```
 
 ## Build on Windows with Qt Creator
 
-1. Install Qt 6.5 or newer with Qt Creator, CMake, and one desktop kit. **MinGW 64-bit** is a straightforward choice. If you choose MSVC instead, install the matching Visual Studio C++ tools.
+1. Install Qt 6.5 or newer with Qt Creator, CMake, and one desktop kit. Required Qt modules are **Core, Widgets, and Concurrent**. **MinGW 64-bit** is a straightforward choice. If you choose MSVC instead, install the matching Visual Studio C++ tools.
 2. In Qt Creator, choose **File > Open File or Project** and open the top-level `CMakeLists.txt`.
 3. Select the matching **Desktop Qt 6.x** kit and choose **Configure Project**.
 4. Build with **Ctrl+B** and run with **Ctrl+R**.
@@ -238,6 +247,15 @@ The planner assumes every maintenance cycle begins at the same simulation time. 
 
 A shortest leg may physically pass through a different selected delivery location. That transit does not service the location: it counts only when that location is the scheduled endpoint of the current Held–Karp leg. If the graph changes while work is running, the stale result is discarded. If a required closed tour cannot be constructed, the page reports it as unreachable.
 
+## Try the Performance Dashboard
+
+1. Select **Performance** and choose a sorting size, random seed, warm-up count, and odd measured-run count.
+2. Select **Run actual benchmarks**. Work runs against one immutable city snapshot in a worker thread.
+3. Inspect measured medians separately from the theoretical-complexity table. The validation line reports sorting/reference, Prim/Kruskal, and Dijkstra/Floyd–Warshall agreement.
+4. Select **Export measurements CSV** to save the measurements and their seed, build, compiler, graph, workload, and complexity metadata.
+
+Sorting algorithms receive identical copies of one seeded dataset. Prim and Kruskal receive the same construction network. Repeated Dijkstra and Floyd–Warshall cover the same ordered source/destination pairs in travel-time mode. Dataset generation, warm-ups, correctness checks, rendering, animations, and event recording are outside the measured regions. No benchmark rows exist until a real run completes.
+
 ## Architecture notes
 
 - `WeightedGraph` is the source of truth. It owns locations, travel roads, explicit construction candidates, ID generation, directed travel adjacency lists, validation, connected-record cleanup, and the graph revision.
@@ -263,6 +281,42 @@ A shortest leg may physically pass through a different selected delivery locatio
 - `NumberTheoryAlgorithms` is Qt-free and provides Euclid steps plus checked 64-bit maintenance-cycle LCM accumulation.
 - `DeliveryTourPlanner` is Qt-free. It builds a directed pairwise travel-time metric with Dijkstra, runs Held–Karp, reconstructs the service order, and expands every leg back to location and road IDs.
 - `AdvancedPlanningPage` submits a complete graph copy through Qt Concurrent and accepts the result only if its graph revision is still current.
+- `BenchmarkSuite` is Qt-free and owns benchmark methodology. It uses `steady_clock`, disables algorithm-event storage, performs warm-ups/repetitions, computes medians, and runs untimed agreement checks.
+- `PerformanceDashboardPage` runs the suite through Qt Concurrent, displays snapshot/environment metadata, and atomically exports completed measurements to CSV.
+
+## Feature-to-algorithm mapping
+
+| Feature | Primary algorithm/data structure |
+|---|---|
+| City Map | Adjacency-list `WeightedGraph`, graphics scene/view |
+| Route Finder | Dijkstra, BFS, DFS, min-priority queue |
+| All-Pairs Routes | Floyd–Warshall, next-hop matrices |
+| Infrastructure | Prim, Kruskal, disjoint-set union |
+| Emergency Dispatch | Priority/time queue policy, repeated travel-time Dijkstra, state machine |
+| Delivery Optimizer | 0/1 Knapsack DP, Fractional Knapsack demonstration, Dijkstra legs |
+| Algorithm Lab | Six manual sorts, Binary Search, bounded event stream |
+| Maintenance Cycles | Euclid GCD, checked incremental LCM |
+| Multi-Stop Tour | Pairwise Dijkstra, Held–Karp bitmask DP |
+| Performance | `steady_clock`, repeated samples, statistical median |
+
+## Time and space complexity summary
+
+| Algorithm | Time | Auxiliary space |
+|---|---:|---:|
+| Dijkstra | `O((V + E) log V)` | `O(V + E)` with lazy queue |
+| BFS / DFS | `O(V + E)` | `O(V)` |
+| Floyd–Warshall | `O(V³)` | `O(V²)` |
+| Prim | `O((V + C) log C)` | `O(V + C)` |
+| Kruskal | `O(C log C)` | `O(V + C)` |
+| 0/1 Knapsack | `O(nW)` pseudo-polynomial | `O(nW)` |
+| Fractional Knapsack | `O(n log n)` | `O(n)` |
+| Bubble / Selection / Insertion | `O(n²)` worst case | `O(1)` |
+| Merge Sort | `O(n log n)` | `O(n)` |
+| Quick Sort | average `O(n log n)`, worst `O(n²)` | average `O(log n)`, worst `O(n)` stack |
+| Heap Sort | `O(n log n)` | `O(1)` |
+| Binary Search | `O(log n)` | `O(1)` |
+| Euclid GCD | `O(log min(a,b))` | `O(1)` |
+| Held–Karp | `O(k²2^k)` | `O(k2^k)` |
 
 ## Complexity
 
@@ -272,7 +326,7 @@ A two-way road contributes two directed adjacency entries, while a one-way road 
 
 Floyd–Warshall uses `O(V³)` time because it considers every `(source, intermediate, destination)` combination. Its weight, next-hop, and next-road matrices each use `O(V²)` space, so total asymptotic space is `O(V²)`. Before adding two partial weights, the implementation rejects infinity operands and values that would exceed `double`'s finite maximum.
 
-For `V` locations and `C` construction candidates, this Prim implementation uses a binary min-priority queue and runs in `O((V + C) log C)` time with `O(V + C)` auxiliary storage. Kruskal sorts candidates in `O(C log C)` time; its path-compressing, union-by-rank DSU operations take near-constant amortized time (`O(α(V))` each) and use `O(V)` storage. Recorded animation events add `O(V + C)` space.
+For `V` locations and `C` construction candidates, this Prim implementation uses a binary min-priority queue and runs in `O((V + C) log C)` time with `O(V + C)` auxiliary storage. Kruskal sorts candidates in `O(C log C)` time; candidate ordering plus its path-compressing, union-by-rank DSU use `O(V + C)` storage, while each DSU operation takes near-constant amortized time (`O(α(V))`). Recorded animation events add `O(V + C)` space.
 
 An MST minimizes the **sum of selected construction costs** needed to connect all locations when connection is possible. It does not minimize the distance or travel time between particular pairs: an inexpensive tree can force a long detour. Shortest-route questions remain the job of Dijkstra or Floyd–Warshall on the travel-road graph.
 
@@ -294,6 +348,35 @@ Dispatch data uses a separate schema-version-1 JSON document containing `simulat
 
 Delivery data uses a separate schema-version-1 JSON document containing `depotLocation`, `vehicleCapacity`, and `packages`. Package records contain `id`, `destination`, `weight`, `value`, and `priority`. Loading validates the full document and all graph references before replacing the current scenario.
 
-## Verification note
+## Known limitations
 
-See the task response for the checks performed in the creation environment. A Qt 6 desktop kit is required for a full GUI compile and runtime test.
+- This is an educational simulator, not a real traffic, dispatch, or emergency-service system.
+- The map has no geographic projection or live traffic source; all values are fictional user data.
+- Held–Karp is intentionally limited to 12 selected stops because its cost is exponential.
+- The Floyd–Warshall GUI limits matrix visualization/computation size; see the All-Pairs page for exact limits.
+- The sorting GUI limits entered values, drawn bars, and stored events. Benchmark sorting size is separately bounded.
+- Quick Sort uses a deterministic final-element pivot and can reach its documented quadratic worst case.
+- Dispatch is greedy per request and is not a globally optimal multi-request assignment.
+- Independent delivery routes are not a multi-stop tour; only Advanced Planning performs exact small-tour optimization.
+- Benchmark measurements depend on the machine, build mode, background load, and dataset. They are not bundled or fabricated, and CSV export is available only after a real run.
+- Simulation JSON is stored separately from the city JSON; compatible files must reference locations in the currently loaded city.
+
+## Five-minute demonstration script
+
+1. **0:00–0:40 — Dashboard and City Map:** identify the adjacency-list source of truth, drag a location, edit a one-way/closed road, and point out the revision counter and JSON save/load.
+2. **0:40–1:20 — Route algorithms:** run travel-time Dijkstra with animation, briefly show BFS/DFS, then open the Floyd–Warshall matrix and highlight the same pair.
+3. **1:20–1:55 — Infrastructure:** compare Prim and Kruskal on the explicit undirected construction candidates and explain why an MST is not a shortest-route network.
+4. **1:55–2:35 — Dispatch:** queue a simulated request, dispatch it, step to the patient/hospital, and show resource reservation/state changes.
+5. **2:35–3:15 — Delivery:** solve 0/1 Knapsack, distinguish Fractional Knapsack, and show that individual depot routes are not a multi-stop tour.
+6. **3:15–3:50 — Algorithm Lab:** generate a seeded duplicate-heavy dataset, animate Merge or Quick Sort, inspect counters, and Binary Search the sorted result.
+7. **3:50–4:25 — Advanced Planning:** calculate `gcd/lcm` for `6, 8, 12`, then compute a small Held–Karp tour and show service order versus expanded path.
+8. **4:25–5:00 — Performance and verification:** run the dashboard, point out seed/build/environment metadata and separate theory table, then export the actual measurements to CSV.
+
+## Verification report
+
+The repository contains two CTest targets:
+
+- `smartcity_core_tests`: graph edge cases, routing agreement, MST agreement/ties, dispatch reservations and transitions, Knapsack/reference checks, sorting/reference checks, number theory, and Held–Karp/brute-force checks.
+- `smartcity_integration_tests`: city/dispatch/delivery JSON round trips, malformed-file atomicity, disabled benchmark events, real benchmark agreement, and a Qt event-loop heartbeat while benchmark work executes in another thread.
+
+In the Part 10 creation environment, `git diff --check` was run. A Qt installation, CMake, and C++ compiler were not available, so the application and CTest executables were **not built or run here**. The presence of test source code is not claimed as a passing test execution. Build and run both tests on the submission machine using the commands in **Build on Windows with Qt Creator**, and record that actual output separately.

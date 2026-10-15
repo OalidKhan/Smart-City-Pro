@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(SmartCityPro VERSION 0.9.0 LANGUAGES CXX)
+project(SmartCityPro VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -44,6 +44,8 @@ add_library(smartcity_core
     src/services/EmergencyDispatchSimulation.h
     src/services/DeliveryScenario.cpp
     src/services/DeliveryScenario.h
+    src/services/BenchmarkSuite.cpp
+    src/services/BenchmarkSuite.h
 )
 
 target_include_directories(smartcity_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -58,8 +60,6 @@ add_executable(SmartCityPro
     src/gui/pages/DashboardPage.h
     src/gui/pages/CityMapPage.cpp
     src/gui/pages/CityMapPage.h
-    src/gui/pages/PlaceholderPage.cpp
-    src/gui/pages/PlaceholderPage.h
     src/gui/pages/RouteFinderPage.cpp
     src/gui/pages/RouteFinderPage.h
     src/gui/pages/AllPairsRoutesPage.cpp
@@ -74,6 +74,8 @@ add_executable(SmartCityPro
     src/gui/pages/AlgorithmLabPage.h
     src/gui/pages/AdvancedPlanningPage.cpp
     src/gui/pages/AdvancedPlanningPage.h
+    src/gui/pages/PerformanceDashboardPage.cpp
+    src/gui/pages/PerformanceDashboardPage.h
     src/services/CityJsonSerializer.cpp
     src/services/CityJsonSerializer.h
     src/services/DispatchJsonSerializer.cpp
@@ -99,5 +101,18 @@ if(BUILD_TESTING)
     add_executable(smartcity_core_tests tests/core_tests.cpp)
     target_link_libraries(smartcity_core_tests PRIVATE smartcity_core)
     add_test(NAME smartcity_core_tests COMMAND smartcity_core_tests)
+
+    add_executable(smartcity_integration_tests
+        tests/integration_tests.cpp
+        src/services/CityJsonSerializer.cpp
+        src/services/CityJsonSerializer.h
+        src/services/DispatchJsonSerializer.cpp
+        src/services/DispatchJsonSerializer.h
+        src/services/DeliveryJsonSerializer.cpp
+        src/services/DeliveryJsonSerializer.h
+    )
+    target_link_libraries(smartcity_integration_tests PRIVATE
+        smartcity_core Qt6::Core Qt6::Concurrent)
+    add_test(NAME smartcity_integration_tests COMMAND smartcity_integration_tests)
 endif()
 

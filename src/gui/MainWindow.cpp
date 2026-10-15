@@ -8,7 +8,7 @@
 #include "gui/pages/DeliveryOptimizerPage.h"
 #include "gui/pages/EmergencyDispatchPage.h"
 #include "gui/pages/InfrastructurePage.h"
-#include "gui/pages/PlaceholderPage.h"
+#include "gui/pages/PerformanceDashboardPage.h"
 #include "gui/pages/RouteFinderPage.h"
 
 #include <QButtonGroup>
@@ -28,7 +28,7 @@ MainWindow::MainWindow(QWidget* parent)
     resize(1280, 780);
     buildInterface();
     applyTheme();
-    statusBar()->showMessage("Ready — Part 9 advanced planning loaded");
+    statusBar()->showMessage("Ready — Part 10 integrated submission build loaded");
 }
 
 void MainWindow::buildInterface()
@@ -67,11 +67,10 @@ void MainWindow::buildInterface()
     addNavigationItem("Delivery Optimizer", new DeliveryOptimizerPage(repository_, pageStack_));
     addNavigationItem("Algorithm Lab", new AlgorithmLabPage(repository_, pageStack_));
     addNavigationItem("Advanced Planning", new AdvancedPlanningPage(repository_, pageStack_));
-    addNavigationItem("Performance", new PlaceholderPage(
-        "Performance", "Benchmark collection and complexity charts are planned for a later part.", pageStack_));
+    addNavigationItem("Performance", new PerformanceDashboardPage(repository_, pageStack_));
 
     navigationLayout->addStretch();
-    auto* version = new QLabel("University Algorithms Project\nPart 9 · v0.9", navigationContainer_);
+    auto* version = new QLabel("University Algorithms Project\nPart 10 · v1.0", navigationContainer_);
     version->setObjectName("sidebarFooter");
     navigationLayout->addWidget(version);
 
@@ -298,6 +297,12 @@ void MainWindow::applyTheme()
             gridline-color: #e2e8f0;
         }
         QTableWidget#matrixTable {
+            background: #ffffff;
+            alternate-background-color: #f8fafc;
+            border: 1px solid #dbe3ee;
+            gridline-color: #e2e8f0;
+        }
+        QTableWidget#performanceTable {
             background: #ffffff;
             alternate-background-color: #f8fafc;
             border: 1px solid #dbe3ee;

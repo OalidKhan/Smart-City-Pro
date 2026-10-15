@@ -20,9 +20,12 @@ struct SpanningForestResult {
 class InfrastructureAlgorithms {
 public:
     static SpanningForestResult minimumSpanningForest(
-        const WeightedGraph& graph, InfrastructureAlgorithm algorithm);
-    static SpanningForestResult prim(const WeightedGraph& graph);
-    static SpanningForestResult kruskal(const WeightedGraph& graph);
+        const WeightedGraph& graph, InfrastructureAlgorithm algorithm,
+        bool recordEvents = true);
+    static SpanningForestResult prim(const WeightedGraph& graph,
+                                     bool recordEvents = true);
+    static SpanningForestResult kruskal(const WeightedGraph& graph,
+                                        bool recordEvents = true);
 };
 
 } // namespace smartcity::algorithms

@@ -75,11 +75,11 @@ DashboardPage::DashboardPage(const smartcity::services::CityRepository& reposito
     notice->setObjectName("infoPanel");
     auto* noticeLayout = new QVBoxLayout(notice);
     noticeLayout->setContentsMargins(22, 18, 22, 18);
-    auto* noticeTitle = new QLabel("Part 9 number theory and advanced delivery", notice);
+    auto* noticeTitle = new QLabel("Part 10 integrated performance dashboard", notice);
     noticeTitle->setObjectName("sectionTitle");
     auto* noticeText = new QLabel(
-        "Advanced Planning now traces Euclid/LCM maintenance calculations and computes exact small multi-stop delivery tours with pairwise Dijkstra and Held–Karp dynamic programming. "
-        "All earlier map, routing, infrastructure, dispatch, delivery, and algorithm-lab modules remain available.",
+        "The final dashboard benchmarks algorithms on identical copied workloads using steady-clock median measurements, exports real results to CSV, and keeps theoretical complexity separate. "
+        "All map, routing, infrastructure, dispatch, delivery, algorithm-lab, and advanced-planning modules remain available.",
         notice);
     noticeText->setObjectName("pageDescription");
     noticeText->setWordWrap(true);

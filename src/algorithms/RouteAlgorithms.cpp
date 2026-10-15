@@ -41,20 +41,26 @@ AlgorithmEvent event(AlgorithmEventType type, int location = -1, int from = -1,
 } // namespace
 
 RouteResult RouteAlgorithms::dijkstra(const WeightedGraph& graph, int startLocationId,
-                                      int destinationLocationId, RouteMetric metric)
+                                      int destinationLocationId, RouteMetric metric,
+                                      bool recordEvents)
 {
     RouteResult result;
+    const auto emit = [&result, recordEvents](AlgorithmEvent algorithmEvent) {
+        if (recordEvents) result.events.push_back(std::move(algorithmEvent));
+    };
     if (!graph.containsVertex(startLocationId) || !graph.containsVertex(destinationLocationId)) {
         return result;
     }
 
-    result.events.push_back(event(AlgorithmEventType::Started, startLocationId));
+    if (recordEvents) emit(event(AlgorithmEventType::Started, startLocationId));
     if (startLocationId == destinationLocationId) {
         result.status = RouteStatus::Trivial;
         result.locationIds.push_back(startLocationId);
-        result.events.push_back(event(AlgorithmEventType::NodeVisited, startLocationId, -1, -1, -1, 0.0));
-        result.events.push_back(event(AlgorithmEventType::FinalRouteNode, startLocationId));
-        result.events.push_back(event(AlgorithmEventType::Finished, destinationLocationId, -1, -1, -1, 0.0));
+        if (recordEvents) {
+            emit(event(AlgorithmEventType::NodeVisited, startLocationId, -1, -1, -1, 0.0));
+            emit(event(AlgorithmEventType::FinalRouteNode, startLocationId));
+            emit(event(AlgorithmEventType::Finished, destinationLocationId, -1, -1, -1, 0.0));
+        }
         return result;
     }
 
@@ -75,26 +81,29 @@ RouteResult RouteAlgorithms::dijkstra(const WeightedGraph& graph, int startLocat
         frontier.pop();
         if (currentDistance != distances.at(current) || settled.find(current) != settled.end()) continue;
         settled.insert(current);
-        result.events.push_back(event(AlgorithmEventType::NodeVisited, current, -1, -1, -1, currentDistance));
+        if (recordEvents)
+            emit(event(AlgorithmEventType::NodeVisited, current, -1, -1, -1, currentDistance));
         if (current == destinationLocationId) break;
 
         for (const auto& edge : sortedOpenEdges(graph, current)) {
-            result.events.push_back(event(AlgorithmEventType::EdgeExplored, -1, current,
-                                          edge.destination, edge.roadId, edgeWeight(edge, metric)));
+            if (recordEvents)
+                emit(event(AlgorithmEventType::EdgeExplored, -1, current,
+                           edge.destination, edge.roadId, edgeWeight(edge, metric)));
             const double candidate = currentDistance + edgeWeight(edge, metric);
             if (candidate < distances.at(edge.destination)) {
                 distances[edge.destination] = candidate;
                 parents[edge.destination] = {current, edge.roadId};
                 frontier.emplace(candidate, edge.destination);
-                result.events.push_back(event(AlgorithmEventType::DistanceUpdated, edge.destination,
-                                              current, edge.destination, edge.roadId, candidate));
+                if (recordEvents)
+                    emit(event(AlgorithmEventType::DistanceUpdated, edge.destination,
+                               current, edge.destination, edge.roadId, candidate));
             }
         }
     }
 
     if (settled.find(destinationLocationId) == settled.end()) {
         result.status = RouteStatus::Unreachable;
-        result.events.push_back(event(AlgorithmEventType::Finished, destinationLocationId));
+        if (recordEvents) emit(event(AlgorithmEventType::Finished, destinationLocationId));
         return result;
     }
 
@@ -111,15 +120,19 @@ RouteResult RouteAlgorithms::dijkstra(const WeightedGraph& graph, int startLocat
     std::reverse(result.locationIds.begin(), result.locationIds.end());
     std::reverse(result.roadIds.begin(), result.roadIds.end());
 
-    result.events.push_back(event(AlgorithmEventType::FinalRouteNode, result.locationIds.front()));
+    if (recordEvents)
+        emit(event(AlgorithmEventType::FinalRouteNode, result.locationIds.front()));
     for (std::size_t index = 0; index < result.roadIds.size(); ++index) {
-        result.events.push_back(event(AlgorithmEventType::FinalRouteEdge, -1,
-                                      result.locationIds[index], result.locationIds[index + 1],
-                                      result.roadIds[index]));
-        result.events.push_back(event(AlgorithmEventType::FinalRouteNode, result.locationIds[index + 1]));
+        if (recordEvents) {
+            emit(event(AlgorithmEventType::FinalRouteEdge, -1,
+                       result.locationIds[index], result.locationIds[index + 1],
+                       result.roadIds[index]));
+            emit(event(AlgorithmEventType::FinalRouteNode, result.locationIds[index + 1]));
+        }
     }
-    result.events.push_back(event(AlgorithmEventType::Finished, destinationLocationId,
-                                  -1, -1, -1, result.totalWeight));
+    if (recordEvents)
+        emit(event(AlgorithmEventType::Finished, destinationLocationId,
+                   -1, -1, -1, result.totalWeight));
     return result;
 }
 

@@ -33,7 +33,8 @@ public:
     [[nodiscard]] static RouteResult dijkstra(const WeightedGraph& graph,
                                                int startLocationId,
                                                int destinationLocationId,
-                                               RouteMetric metric);
+                                               RouteMetric metric,
+                                               bool recordEvents = true);
 
     [[nodiscard]] static TraversalResult traverse(const WeightedGraph& graph,
                                                    int startLocationId,
