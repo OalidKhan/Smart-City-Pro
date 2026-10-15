@@ -576,6 +576,11 @@ void CityMapPage::deleteSelected()
                 "This location is referenced by an ambulance, hospital, or request. Remove the simulation record first.");
             return;
         }
+        if (repository_.deliveryScenario().referencesLocation(location->id())) {
+            QMessageBox::warning(this, "Location used by delivery",
+                "This location is the delivery depot or a package destination. Update the delivery scenario first.");
+            return;
+        }
         std::size_t connected = 0;
         std::size_t connectedCandidates = 0;
         for (const auto& entry : graph.roads())
@@ -613,16 +618,33 @@ void CityMapPage::loadCity()
     if (!smartcity::services::CityJsonSerializer::load(fileName, repository_.city(), &error)) {
         QMessageBox::critical(this, "Load failed", error + "\n\nThe current city was not changed."); return;
     }
-    std::string compatibilityError;
-    if (!repository_.dispatchSimulation().validateAgainstGraph(
-            repository_.city(), &compatibilityError)) {
-        const auto choice = QMessageBox::question(this, "City conflicts with dispatch data",
-            QString::fromStdString(compatibilityError)
-                + "\n\nReset the dispatch simulation and keep the newly loaded city? "
-                  "Choose No to restore the previous city and simulation.");
+    std::string dispatchError;
+    std::string deliveryError;
+    const bool dispatchCompatible = repository_.dispatchSimulation().validateAgainstGraph(
+        repository_.city(), &dispatchError);
+    const bool deliveryCompatible = repository_.deliveryScenario().validateAgainstGraph(
+        repository_.city(), &deliveryError);
+    if (!dispatchCompatible || !deliveryCompatible) {
+        QString details;
+        if (!dispatchCompatible) details += "Dispatch: " + QString::fromStdString(dispatchError) + "\n";
+        if (!deliveryCompatible) details += "Delivery: " + QString::fromStdString(deliveryError) + "\n";
+        if (!deliveryCompatible && repository_.city().vertexCount() == 0) {
+            repository_.city().replaceWith(previousGraph);
+            QMessageBox::warning(this, "City conflicts with saved module data",
+                details + "\nAn empty city cannot have a delivery depot, so the previous city was restored.");
+            return;
+        }
+        const auto choice = QMessageBox::question(this, "City conflicts with saved module data",
+            details + "\nReset the incompatible module data and keep the newly loaded city? "
+                      "Choose No to restore the previous city.");
         if (choice == QMessageBox::Yes) {
-            repository_.dispatchSimulation().replaceData(
-                0.0, {}, {}, {}, repository_.city());
+            if (!dispatchCompatible)
+                repository_.dispatchSimulation().replaceData(0.0, {}, {}, {}, repository_.city());
+            if (!deliveryCompatible) {
+                int depot = repository_.city().locations().begin()->first;
+                for (const auto& entry : repository_.city().locations()) depot = std::min(depot, entry.first);
+                repository_.deliveryScenario().replaceData(depot, 10, {}, repository_.city());
+            }
         } else {
             repository_.city().replaceWith(previousGraph);
             return;

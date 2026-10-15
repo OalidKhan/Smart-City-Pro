@@ -3,11 +3,13 @@
 #include "algorithms/FloydWarshall.h"
 #include "algorithms/DisjointSetUnion.h"
 #include "algorithms/InfrastructureAlgorithms.h"
+#include "algorithms/KnapsackAlgorithms.h"
 #include "core/models/CityLocation.h"
 #include "core/models/EmergencyModels.h"
 #include "core/models/Road.h"
 #include "services/CityRepository.h"
 #include "services/EmergencyDispatchSimulation.h"
+#include "services/DeliveryScenario.h"
 
 #include <algorithm>
 #include <cmath>
@@ -373,6 +375,52 @@ int main()
                     == smartcity::core::RequestStatus::Cancelled,
             "queued simulated requests should support cancellation");
 
+    using smartcity::core::DeliveryPackage;
+    using smartcity::core::PackagePriority;
+    const std::vector<DeliveryPackage> knapsackPackages{
+        {0, 0, 10, 60.0, PackagePriority::Medium},
+        {1, 1, 20, 100.0, PackagePriority::Low},
+        {2, 2, 30, 120.0, PackagePriority::High}};
+    const auto zeroOne = smartcity::algorithms::KnapsackAlgorithms::solveZeroOne(
+        knapsackPackages, 50);
+    require(zeroOne.status == smartcity::algorithms::KnapsackStatus::Solved
+                && zeroOne.selectedPackageIds == std::vector<int>({1, 2})
+                && zeroOne.unselectedPackageIds == std::vector<int>({0})
+                && zeroOne.totalWeight == 50
+                && std::abs(zeroOne.totalValue - 220.0) < 1e-9
+                && zeroOne.remainingCapacity == 0,
+            "0/1 Knapsack should reconstruct the known optimal package set");
+    require(zeroOne.totalValue > 160.0,
+            "0/1 dynamic programming should beat greedy ratio selection on the classic counterexample");
+    require(zeroOne.rowCount == 4 && zeroOne.columnCount == 51
+                && std::abs(zeroOne.tableValue(3, 50) - 220.0) < 1e-9,
+            "small 0/1 inputs should expose a correct DP visualization table");
+    const auto fractional = smartcity::algorithms::KnapsackAlgorithms::solveFractional(
+        knapsackPackages, 50);
+    require(fractional.validInput && std::abs(fractional.totalValue - 240.0) < 1e-9
+                && fractional.selections.size() == 3
+                && std::abs(fractional.selections.back().fraction - 2.0 / 3.0) < 1e-9,
+            "Fractional Knapsack should independently produce the known divisible-cargo answer");
+    auto invalidPackages = knapsackPackages;
+    invalidPackages.front().weight = 0;
+    require(smartcity::algorithms::KnapsackAlgorithms::solveZeroOne(invalidPackages, 50).status
+                == smartcity::algorithms::KnapsackStatus::InvalidInput,
+            "zero package weight should be rejected");
+    require(smartcity::algorithms::KnapsackAlgorithms::solveZeroOne(
+                knapsackPackages, 1'000'000).status
+                == smartcity::algorithms::KnapsackStatus::TableTooLarge,
+            "oversized DP tables should be rejected before allocation");
+
+    smartcity::services::DeliveryScenario delivery;
+    require(delivery.setDepotLocation(0, routes)
+                && delivery.setVehicleCapacity(50)
+                && delivery.addPackage(knapsackPackages.at(0), routes),
+            "delivery scenario should accept valid graph references and positive capacity");
+    require(!delivery.addPackage({3, 99, 1, 1.0, PackagePriority::Low}, routes),
+            "delivery scenario should reject a missing destination");
+    require(delivery.referencesLocation(0),
+            "delivery scenario should report depot and package location references");
+
     const smartcity::services::CityRepository repository;
     require(repository.city().vertexCount() == 6, "sample city should contain six locations");
     require(repository.city().roadCount() == 7, "sample city should contain seven roads");
@@ -381,6 +429,9 @@ int main()
     require(repository.dispatchSimulation().ambulances().size() == 2
                 && repository.dispatchSimulation().hospitals().size() == 1,
             "sample city should include simulated dispatch resources");
+    require(repository.deliveryScenario().packages().size() == 4
+                && repository.deliveryScenario().vehicleCapacity() == 7,
+            "sample city should include a delivery scenario");
     require(repository.city().road(6)->closed, "sample should contain a closed road");
 
     std::cout << "All SmartCity core tests passed.\n";

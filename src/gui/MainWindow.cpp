@@ -3,6 +3,7 @@
 #include "gui/pages/AllPairsRoutesPage.h"
 #include "gui/pages/CityMapPage.h"
 #include "gui/pages/DashboardPage.h"
+#include "gui/pages/DeliveryOptimizerPage.h"
 #include "gui/pages/EmergencyDispatchPage.h"
 #include "gui/pages/InfrastructurePage.h"
 #include "gui/pages/PlaceholderPage.h"
@@ -25,7 +26,7 @@ MainWindow::MainWindow(QWidget* parent)
     resize(1280, 780);
     buildInterface();
     applyTheme();
-    statusBar()->showMessage("Ready — Part 6 emergency dispatch simulator loaded");
+    statusBar()->showMessage("Ready — Part 7 delivery optimizer loaded");
 }
 
 void MainWindow::buildInterface()
@@ -61,15 +62,14 @@ void MainWindow::buildInterface()
     addNavigationItem("All-Pairs Routes", new AllPairsRoutesPage(repository_, pageStack_));
     addNavigationItem("Infrastructure", new InfrastructurePage(repository_, pageStack_));
     addNavigationItem("Emergency Dispatch", new EmergencyDispatchPage(repository_, pageStack_));
-    addNavigationItem("Delivery Optimizer", new PlaceholderPage(
-        "Delivery Optimizer", "Delivery scheduling and route optimization are planned for a later part.", pageStack_));
+    addNavigationItem("Delivery Optimizer", new DeliveryOptimizerPage(repository_, pageStack_));
     addNavigationItem("Algorithm Lab", new PlaceholderPage(
         "Algorithm Lab", "A general-purpose algorithm sandbox is planned; Route Finder already includes routing animations.", pageStack_));
     addNavigationItem("Performance", new PlaceholderPage(
         "Performance", "Benchmark collection and complexity charts are planned for a later part.", pageStack_));
 
     navigationLayout->addStretch();
-    auto* version = new QLabel("University Algorithms Project\nPart 6 · v0.6", navigationContainer_);
+    auto* version = new QLabel("University Algorithms Project\nPart 7 · v0.7", navigationContainer_);
     version->setObjectName("sidebarFooter");
     navigationLayout->addWidget(version);
 
@@ -262,6 +262,11 @@ void MainWindow::applyTheme()
             border: 1px solid #dbe3ee;
             border-radius: 7px;
         }
+        QGraphicsView#deliveryView {
+            background: #f8fafc;
+            border: 1px solid #dbe3ee;
+            border-radius: 7px;
+        }
         QTableWidget#candidateTable {
             background: #ffffff;
             alternate-background-color: #f8fafc;
@@ -269,6 +274,12 @@ void MainWindow::applyTheme()
             gridline-color: #e2e8f0;
         }
         QTableWidget#dispatchTable {
+            background: #ffffff;
+            alternate-background-color: #f8fafc;
+            border: 1px solid #dbe3ee;
+            gridline-color: #e2e8f0;
+        }
+        QTableWidget#deliveryTable {
             background: #ffffff;
             alternate-background-color: #f8fafc;
             border: 1px solid #dbe3ee;
